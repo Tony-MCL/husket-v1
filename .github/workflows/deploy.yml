@@ -1,6 +1,7 @@
 # ===============================
 # .github/workflows/deploy.yml
 # GitHub Pages deploy via Actions (Vite + React)
+# NOTE: No lockfile in repo => do NOT enable npm cache + use npm install
 # ===============================
 name: Deploy to GitHub Pages
 
@@ -29,10 +30,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "npm"
 
       - name: Install
-        run: npm ci
+        run: npm install
 
       - name: Build
         env:
