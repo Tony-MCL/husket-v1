@@ -1,3 +1,4 @@
+Dag 1, Tirsdag 17.02.2026:
 Version update – Core v1 • v0.1.0
 ✅ Funksjoner lagt til
 
@@ -77,3 +78,18 @@ byttet npm ci → npm install
 👤 Hvordan en fremtidig bruker forholder seg til dette
 
 Ingen synlig endring i appen. Appen blir bare faktisk publisert uten build-feil.
+
+Version update – v0.1.2 (GitHub Pages whitescreen fix)
+✅ Funksjoner lagt til
+
+Ingen nye app-funksjoner. Kun deploy/asset-fix.
+
+🧱 Hvordan det er bygd (kort for oss)
+
+Vite bygges nå med base: "./" slik at alle bundla asset-paths blir relative.
+
+Workflow trenger ikke lenger å injisere VITE_BASE.
+
+👤 Hvordan en fremtidig bruker forholder seg til dette
+
+Ingen synlig endring – appen bare laster faktisk på GitHub Pages uten whitescreen.
