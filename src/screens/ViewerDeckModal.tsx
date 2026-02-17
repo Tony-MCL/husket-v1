@@ -1,7 +1,7 @@
 // ===============================
 // src/screens/ViewerDeckModal.tsx
 // Wrapper for HusketSwipeDeck
-// Uses current album list (active life + active filters) as the deck.
+// IMPORTANT: Do NOT use "modalBox" here (it may cover the whole screen and block clicks).
 // ===============================
 import React, { useMemo } from "react";
 import type { Husket } from "../domain/types";
@@ -34,7 +34,6 @@ export function ViewerDeckModal(props: {
     if (!current) return;
     toggleFavorite(current.id);
     onToast(current.isFavorite ? "Fjernet favoritt." : "Lagt til som favoritt.");
-    // Hold viewer open; we navigate to same id to refresh the current card reference in App (optional).
     onNavigateToId(current.id);
   };
 
@@ -46,7 +45,6 @@ export function ViewerDeckModal(props: {
     softDelete(current.id);
     onToast("Flyttet til papirkurv.");
 
-    // After delete: choose a neighbor card if exists, else close.
     const remaining = items.filter((x) => x.id !== current.id);
     if (remaining.length === 0) {
       onClose();
@@ -63,30 +61,72 @@ export function ViewerDeckModal(props: {
     onNavigateToId(next.id);
   };
 
+  // If the deck is empty, show a safe close UI (should not happen if Album had items)
+  if (items.length === 0) {
+    return (
+      <div className="modalOverlay" onClick={onClose}>
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            width: "min(92vw, 560px)",
+            background: "rgba(255,255,255,0.92)",
+            borderRadius: 16,
+            border: "1px solid rgba(0,0,0,0.10)",
+            padding: 14
+          }}
+        >
+          <div style={{ fontWeight: 800, marginBottom: 8 }}>Viewer</div>
+          <div className="smallHelp">Ingen kort å vise.</div>
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
+            <button className="flatBtn" onClick={onClose}>
+              Lukk
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="modalOverlay" onClick={onClose}>
+      {/* IMPORTANT: this container must NOT cover the whole screen */}
       <div
-        className="modalBox"
         onClick={(e) => e.stopPropagation()}
         style={{
-          width: "min(100vw - 20px, 560px)",
-          maxWidth: "560px",
-          padding: 0,
-          background: "transparent",
-          border: "none",
-          boxShadow: "none"
+          width: "min(92vw, 560px)",
+          height: "min(86vh, 860px)",
+          position: "relative",
+          borderRadius: 22,
+          overflow: "visible"
         }}
       >
-        <div style={{ height: "min(86vh, 860px)" }}>
-          <HusketSwipeDeck
-            items={items}
-            index={index}
-            onSetIndex={doSetIndex}
-            onClose={onClose}
-            onToggleFavorite={doToggleFavorite}
-            onDeleteCurrent={doDelete}
-          />
-        </div>
+        {/* Always-visible close button (so user is never stuck) */}
+        <button
+          type="button"
+          className="flatBtn"
+          onClick={onClose}
+          style={{
+            position: "absolute",
+            top: -6,
+            right: -6,
+            zIndex: 2000,
+            background: "rgba(255,255,255,0.75)",
+            backdropFilter: "blur(8px)"
+          }}
+          aria-label="Lukk viewer"
+          title="Lukk"
+        >
+          ✕
+        </button>
+
+        <HusketSwipeDeck
+          items={items}
+          index={index}
+          onSetIndex={doSetIndex}
+          onClose={onClose}
+          onToggleFavorite={doToggleFavorite}
+          onDeleteCurrent={doDelete}
+        />
       </div>
     </div>
   );
