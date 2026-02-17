@@ -1,9 +1,9 @@
 // ===============================
 // src/components/HusketSwipeDeck.tsx
 // Viewer bunke + swipe (Framer Motion)
-// - Swipe left = older (index + 1)
-// - Swipe right = newer (index - 1)
-// - Underkort vises kun mens man drar
+// FIXES:
+// - Fullscreen no longer closes the whole viewer (tap-through prevention)
+// - Fullscreen closes ONLY via ✕ button
 // ===============================
 import React, { useEffect, useMemo, useState } from "react";
 import { motion, useAnimation, type PanInfo } from "framer-motion";
@@ -232,6 +232,7 @@ export function HusketSwipeDeck({
     justifySelf: "end"
   };
 
+  // Fullscreen overlay: it must eat ALL pointer/click events so nothing "falls through".
   const fullOverlay: React.CSSProperties = {
     position: "fixed",
     inset: 0,
@@ -239,7 +240,8 @@ export function HusketSwipeDeck({
     background: "rgba(0,0,0,0.92)",
     display: "grid",
     gridTemplateRows: "auto 1fr",
-    padding: "10px 10px calc(10px + env(safe-area-inset-bottom))"
+    padding: "10px 10px calc(10px + env(safe-area-inset-bottom))",
+    touchAction: "none"
   };
 
   const fullTop: React.CSSProperties = {
@@ -310,16 +312,25 @@ export function HusketSwipeDeck({
           role="dialog"
           aria-modal="true"
           style={fullOverlay}
-          onClick={(e) => {
-            // IMPORTANT: prevent click from reaching ViewerDeckModal's modalOverlay (which would close viewer)
+          onPointerDown={(e) => {
+            e.preventDefault();
             e.stopPropagation();
-            setFullOpen(false);
+          }}
+          onPointerUp={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            // NOTE: background tap does NOT close fullscreen (avoids tap-through to viewer overlay)
           }}
         >
           <div style={fullTop} onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
               onClick={(e) => {
+                e.preventDefault();
                 e.stopPropagation();
                 setFullOpen(false);
               }}
