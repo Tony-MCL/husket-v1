@@ -259,3 +259,12 @@ App bygger igjen: ViewerState håndteres korrekt (union), og vi bruker viewer.id
 👤 Brukeropplevelse
 
 Uendret visuelt – men viewer-decken skal ikke “kollapse” pga typefeil.
+
+Version update – Core v1 • v0.1.10
+✅ Endring
+
+ViewerState håndteres korrekt (bruker husketId)
+
+Ingen type-casting
+
+Build skal nå være grønn
