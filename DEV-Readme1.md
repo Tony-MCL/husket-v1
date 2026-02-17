@@ -251,3 +251,11 @@ Fullscreen lukker nå tilbake til kortstokken og kan ikke “tap-through” til 
 Åpne thumbnail → viewer-bunke åpner stabilt.
 
 Åpne fullscreen → lukk med ✕ → tilbake til samme kort i bunken.
+
+✅ Endring
+
+App bygger igjen: ViewerState håndteres korrekt (union), og vi bruker viewer.id kun når viewer er åpen.
+
+👤 Brukeropplevelse
+
+Uendret visuelt – men viewer-decken skal ikke “kollapse” pga typefeil.
