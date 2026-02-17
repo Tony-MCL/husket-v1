@@ -141,3 +141,32 @@ Velger liv → hvis det ikke finnes husk’eter enda, tas brukeren rett til Capt
 Kan åpne filter fra toppen og velge “kun favoritter”.
 
 Kan åpne papirkurv fra Album/Settings for å gjenopprette eller tømme.
+
+Version update – Core v1 • v0.1.3
+✅ Funksjoner lagt til
+
+Viewer (light) åpnes ved trykk på husk’et i Album.
+
+Favoritt kan toggles fra Viewer (lagres lokalt).
+
+Slett fra Viewer flytter husk’et til Papirkurv (med bekreftelse).
+
+🧱 Hvordan det er bygd (kort for oss)
+
+ViewerModal.tsx leser husk’et via getById, og gjør mutasjoner via repo-funksjoner:
+
+toggleFavorite(id)
+
+softDelete(id)
+
+Viewer-open/close styres av global uiStore.viewer.
+
+Panel-swipe deaktiveres når modal (viewer/trash/filter) er åpen, for å unngå “dobbel gest”.
+
+👤 Hvordan en fremtidig bruker forholder seg til dette
+
+Trykker på et bilde i Album for å åpne Viewer.
+
+Kan markere som favoritt eller slette (til papirkurv) direkte derfra.
+
+Lukker Viewer når ferdig.
