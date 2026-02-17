@@ -229,3 +229,12 @@ Lagring skjer via upsert() i husketRepo (localStorage).
 👤 Hvordan en fremtidig bruker forholder seg til dette
 
 Bruker kan lagre et husk’et og se det dukke opp i albumet, og åpne det i viewer.
+
+Version update – Core v1 • v0.1.7
+✅ Endring
+
+Fullskjerm-visning i Viewer lukkes nå tilbake til kort-bunken, ikke Album.
+
+🧱 Hvordan det er bygd (kort)
+
+Fullscreen-overlay stopper click-bubbling (stopPropagation) slik at klikk ikke når viewer-modalen sin overlay-lukking.
