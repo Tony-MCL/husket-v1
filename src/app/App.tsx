@@ -1,6 +1,7 @@
 // ===============================
 // src/app/App.tsx
-// - Viewer now uses swipe deck (Framer Motion)
+// - Viewer uses swipe deck (Framer Motion)
+// - Fix: deckItems must recompute when viewer/panel changes (avoid stale empty memo)
 // ===============================
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUiStore } from "../state/uiStore";
@@ -56,12 +57,19 @@ export function App() {
   }, [filtersOpen, albumFilters.favoriteOnly]);
 
   // Deck items: same as album list (active life + filters)
+  // IMPORTANT: must recompute when viewer/panel changes to avoid stale empty list without refresh.
   const deckItems: Husket[] = useMemo(() => {
     if (!activeLifeId) return [];
     const all = listByLife(activeLifeId, false);
     if (albumFilters.favoriteOnly) return all.filter((x) => x.isFavorite);
     return all;
-  }, [activeLifeId, albumFilters.favoriteOnly]);
+  }, [
+    activeLifeId,
+    albumFilters.favoriteOnly,
+    panel,
+    viewer.isOpen,
+    viewer.husketId
+  ]);
 
   // Contract 9.1: If album is empty -> go directly to Capture
   useEffect(() => {
@@ -113,7 +121,7 @@ export function App() {
     }
   };
 
-  const versionLabel = useMemo(() => "Core v1 • offline • 0.1.4", []);
+  const versionLabel = useMemo(() => "Core v1 • offline • 0.1.8", []);
 
   if (boot === "splash") {
     return <SplashScreen onDone={() => setBoot("ready")} />;
