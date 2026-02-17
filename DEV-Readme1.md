@@ -170,3 +170,32 @@ Trykker på et bilde i Album for å åpne Viewer.
 Kan markere som favoritt eller slette (til papirkurv) direkte derfra.
 
 Lukker Viewer når ferdig.
+
+Version update – Core v1 • v0.1.4
+✅ Funksjoner lagt til
+
+Viewer er nå en bunke med kort (deck), der du kan bla ved å:
+
+sveipe toppkortet (høyre = nyere/forrige, venstre = eldre/neste)
+
+bruke piler på kortet (knapp-navigasjon uten swipe)
+
+Trykk på bildet i kortet åpner fullskjerm-visning.
+
+Favoritt og slett (til papirkurv) fungerer fortsatt – nå på “toppkortet” i bunken.
+
+🧱 Hvordan det er bygd (kort for oss)
+
+Framer Motion brukes for drag + spring animasjon.
+
+HusketSwipeDeck håndterer swipe-terskel, “kast ut”, og underkort-visual (kun mens man drar).
+
+ViewerDeckModal bruker samme item-liste som albumet (aktivt liv + aktive filtre).
+
+👤 Hvordan en fremtidig bruker forholder seg til dette
+
+Trykker på et husk’et i albumet → åpner viewer-bunken på riktig kort.
+
+Sveiper for å bla i resten av bunken.
+
+Kan favoritt-markere, slette til papirkurv eller åpne bilde i fullskjerm.
