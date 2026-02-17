@@ -212,3 +212,20 @@ ViewerDeckModal bruker nå egen container i stedet for modalBox, slik at vi unng
 👤 Hvordan en fremtidig bruker forholder seg til dette
 
 Viewer åpner alltid med synlige kort og en tydelig “Lukk”-knapp, så man aldri blir “låst” bak et tomt overlay.
+
+Version update – Core v1 • v0.1.5
+✅ Funksjoner lagt til
+
+Capture lager nå ekte husk’eter (offline) og lagrer dem lokalt.
+
+Viewer-bunken får dermed faktiske kort å vise og swipe gjennom.
+
+🧱 Hvordan det er bygd (kort for oss)
+
+CaptureScreen oppretter Husket med id, lifeId, createdAt, imageDataUrl og optional comment.
+
+Lagring skjer via upsert() i husketRepo (localStorage).
+
+👤 Hvordan en fremtidig bruker forholder seg til dette
+
+Bruker kan lagre et husk’et og se det dukke opp i albumet, og åpne det i viewer.
