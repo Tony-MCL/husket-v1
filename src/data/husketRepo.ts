@@ -86,3 +86,20 @@ export function emptyTrash() {
   const keep = all.filter((x) => !x.deletedAt);
   writeAll(keep);
 }
+
+export function toggleFavorite(id: string) {
+  const all = readAll();
+  const idx = all.findIndex((x) => x.id === id);
+  if (idx < 0) return;
+
+  const current = all[idx];
+  const nextIsFav = !current.isFavorite;
+
+  all[idx] = {
+    ...current,
+    isFavorite: nextIsFav ? true : undefined,
+    favoritedAt: nextIsFav ? Date.now() : undefined
+  };
+
+  writeAll(all);
+}
