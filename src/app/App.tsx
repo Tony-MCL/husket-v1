@@ -1,11 +1,6 @@
 // ===============================
 // src/app/App.tsx
-// Wire-up / panel container / gestures (two-panel v1)
-// Includes:
-// - Auto redirect to Capture when album empty (contract 9.1)
-// - Filter panel (favoriteOnly) with Apply/Clear buttons
-// - Trash modal wiring
-// - Viewer modal wiring (favorite + delete -> trash)
+// - Viewer now uses swipe deck (Framer Motion)
 // ===============================
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUiStore } from "../state/uiStore";
@@ -18,8 +13,9 @@ import { BottomNav } from "../components/BottomNav";
 import { SettingsDrawer } from "../components/SettingsDrawer";
 import { ToastHost } from "../components/ToastHost";
 import { TrashScreen } from "../screens/TrashScreen";
-import { ViewerModal } from "../screens/ViewerModal";
+import { ViewerDeckModal } from "../screens/ViewerDeckModal";
 import { listByLife } from "../data/husketRepo";
+import type { Husket } from "../domain/types";
 
 type BootPhase = "splash" | "ready";
 
@@ -58,6 +54,14 @@ export function App() {
     if (!filtersOpen) return;
     setDraftFavoriteOnly(!!albumFilters.favoriteOnly);
   }, [filtersOpen, albumFilters.favoriteOnly]);
+
+  // Deck items: same as album list (active life + filters)
+  const deckItems: Husket[] = useMemo(() => {
+    if (!activeLifeId) return [];
+    const all = listByLife(activeLifeId, false);
+    if (albumFilters.favoriteOnly) return all.filter((x) => x.isFavorite);
+    return all;
+  }, [activeLifeId, albumFilters.favoriteOnly]);
 
   // Contract 9.1: If album is empty -> go directly to Capture
   useEffect(() => {
@@ -109,7 +113,7 @@ export function App() {
     }
   };
 
-  const versionLabel = useMemo(() => "Core v1 • offline • 0.1.3", []);
+  const versionLabel = useMemo(() => "Core v1 • offline • 0.1.4", []);
 
   if (boot === "splash") {
     return <SplashScreen onDone={() => setBoot("ready")} />;
@@ -171,9 +175,15 @@ export function App() {
       {/* Trash (global admin) */}
       {trashOpen ? <TrashScreen onClose={closeTrash} onToast={toastNow} /> : null}
 
-      {/* Viewer (light modal) */}
+      {/* Viewer (swipe deck) */}
       {viewer.isOpen ? (
-        <ViewerModal husketId={viewer.husketId} onClose={closeViewer} onToast={toastNow} />
+        <ViewerDeckModal
+          items={deckItems}
+          husketId={viewer.husketId}
+          onClose={closeViewer}
+          onToast={toastNow}
+          onNavigateToId={(id) => openViewer(id)}
+        />
       ) : null}
 
       {/* Screen content */}
