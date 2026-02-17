@@ -199,3 +199,16 @@ Trykker på et husk’et i albumet → åpner viewer-bunken på riktig kort.
 Sveiper for å bla i resten av bunken.
 
 Kan favoritt-markere, slette til papirkurv eller åpne bilde i fullskjerm.
+
+Version update – Core v1 • v0.1.5 (Viewer fix)
+✅ Funksjoner lagt til
+
+Ingen nye funksjoner – kun en viktig UI-fix.
+
+🧱 Hvordan det er bygd (kort for oss)
+
+ViewerDeckModal bruker nå egen container i stedet for modalBox, slik at vi unngår CSS som kan gjøre boksen fullskjerm og “usynlig”.
+
+👤 Hvordan en fremtidig bruker forholder seg til dette
+
+Viewer åpner alltid med synlige kort og en tydelig “Lukk”-knapp, så man aldri blir “låst” bak et tomt overlay.
