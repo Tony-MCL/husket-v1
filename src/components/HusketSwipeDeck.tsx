@@ -306,9 +306,25 @@ export function HusketSwipeDeck({
 
       {/* Fullscreen photo */}
       {fullOpen ? (
-        <div role="dialog" aria-modal="true" style={fullOverlay} onClick={() => setFullOpen(false)}>
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={fullOverlay}
+          onClick={(e) => {
+            // IMPORTANT: prevent click from reaching ViewerDeckModal's modalOverlay (which would close viewer)
+            e.stopPropagation();
+            setFullOpen(false);
+          }}
+        >
           <div style={fullTop} onClick={(e) => e.stopPropagation()}>
-            <button type="button" onClick={() => setFullOpen(false)} style={fullClose}>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setFullOpen(false);
+              }}
+              style={fullClose}
+            >
               ✕
             </button>
             <div style={{ color: "rgba(255,255,255,0.85)", fontWeight: 700 }}>
