@@ -1,7 +1,7 @@
 // ===============================
 // src/screens/AlbumScreen.tsx
 // Minimal v1 skeleton (grid + empty state)
-// Papirkurv-knapp og filter UI kommer i neste pakke.
+// Now includes: trash button (bottom-left) and uses filters (favoriteOnly)
 // ===============================
 import React, { useMemo } from "react";
 import { useUiStore } from "../state/uiStore";
@@ -12,12 +12,12 @@ export function AlbumScreen(props: { onOpenViewer: (id: string) => void }) {
 
   const activeLifeId = useUiStore((s) => s.activeLifeId);
   const filters = useUiStore((s) => s.albumFilters);
+  const openTrash = useUiStore((s) => s.openTrash);
 
   const items = useMemo(() => {
     if (!activeLifeId) return [];
     const all = listByLife(activeLifeId, false);
 
-    // Minimal filter stub: favoriteOnly only (others added later)
     if (filters.favoriteOnly) return all.filter((x) => x.isFavorite);
 
     return all;
@@ -27,34 +27,47 @@ export function AlbumScreen(props: { onOpenViewer: (id: string) => void }) {
     return <div className="appShell">Ingen aktivt liv.</div>;
   }
 
-  if (items.length === 0) {
-    return (
-      <div className="appShell" style={{ paddingTop: 74 }}>
-        <div className="smallHelp" style={{ textAlign: "center", marginTop: 24 }}>
-          Tomt album. Gå til Capture for å lage ditt første husk’et.
-        </div>
-      </div>
-    );
-  }
-
+  // NOTE: App.tsx handles auto-redirect to Capture when empty.
   return (
     <div className="appShell" style={{ paddingTop: 74 }}>
-      <div className="albumGrid">
-        {items.map((h) => (
-          <button
-            key={h.id}
-            className="thumb"
-            style={{ padding: 0, border: "1px solid var(--line)", textAlign: "left" }}
-            onClick={() => onOpenViewer(h.id)}
-          >
-            <img className="thumbImg" src={h.imageDataUrl} alt="" />
-            <div className="thumbMeta">
-              <span>{new Date(h.createdAt).toLocaleDateString("no-NO")}</span>
-              <span className="badge">{h.isFavorite ? "★" : "—"}</span>
-            </div>
-          </button>
-        ))}
-      </div>
+      {/* Trash button (global admin, visible in Album only) */}
+      <button
+        className="flatBtn"
+        onClick={openTrash}
+        style={{
+          position: "fixed",
+          left: 10,
+          bottom: 96,
+          zIndex: 25,
+          background: "rgba(255,255,255,0.7)",
+          backdropFilter: "blur(8px)"
+        }}
+      >
+        Papirkurv
+      </button>
+
+      {items.length === 0 ? (
+        <div className="smallHelp" style={{ textAlign: "center", marginTop: 24 }}>
+          Tomt album.
+        </div>
+      ) : (
+        <div className="albumGrid">
+          {items.map((h) => (
+            <button
+              key={h.id}
+              className="thumb"
+              style={{ padding: 0, border: "1px solid var(--line)", textAlign: "left" }}
+              onClick={() => onOpenViewer(h.id)}
+            >
+              <img className="thumbImg" src={h.imageDataUrl} alt="" />
+              <div className="thumbMeta">
+                <span>{new Date(h.createdAt).toLocaleDateString("no-NO")}</span>
+                <span className="badge">{h.isFavorite ? "★" : "—"}</span>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
