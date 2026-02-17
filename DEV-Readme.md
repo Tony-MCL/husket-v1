@@ -60,3 +60,20 @@ eller bruke knappene i bunnmenyen.
 Brukeren kan (foreløpig) lagre et demo-husk’et og se det dukke opp i Album.
 
 “Premium” og “Filter” finnes som knapper, men er ikke aktive funksjoner ennå.
+
+Version update – v0.1.1 (CI fix)
+✅ Funksjoner lagt til
+
+Ingen app-funksjoner. Kun bygg/deploy-fix.
+
+🧱 Hvordan det er bygd (kort for oss)
+
+GitHub Actions workflow er endret til å ikke kreve lockfile:
+
+fjernet cache: npm
+
+byttet npm ci → npm install
+
+👤 Hvordan en fremtidig bruker forholder seg til dette
+
+Ingen synlig endring i appen. Appen blir bare faktisk publisert uten build-feil.
