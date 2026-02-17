@@ -106,3 +106,38 @@ GitHub Pages må publisere fra Actions artifact (dist/), ikke repo-root.
 👤 Hvordan en fremtidig bruker forholder seg til dette
 
 Ingen synlig endring – appen bare laster.
+
+Version update – Core v1 • v0.1.2
+✅ Funksjoner lagt til
+
+Tomt album → automatisk til Capture etter valg av liv.
+
+Filter-panel med:
+
+“Vis kun favoritter” (fungerer)
+
+“Filtrer” og “Tøm valg”
+
+Papirkurv tilgjengelig fra:
+
+Album (knapp nede venstre)
+
+Settings (egen knapp)
+
+Inneholder foreløpig: liste + gjenopprett + “Tøm papirkurv” (med confirm)
+
+🧱 Hvordan det er bygd (kort for oss)
+
+Global UI-state utvidet med trashOpen (fortsatt liten og global).
+
+Filter-panel bruker “draft state” lokalt i App.tsx og skriver først til uiStore.albumFilters ved “Filtrer”.
+
+Tomt-album redirect gjøres i App.tsx (kontrakt 9.1), basert på listByLife(...).
+
+👤 Hvordan en fremtidig bruker forholder seg til dette
+
+Velger liv → hvis det ikke finnes husk’eter enda, tas brukeren rett til Capture.
+
+Kan åpne filter fra toppen og velge “kun favoritter”.
+
+Kan åpne papirkurv fra Album/Settings for å gjenopprette eller tømme.
