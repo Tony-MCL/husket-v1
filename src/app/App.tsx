@@ -1,8 +1,7 @@
 // ===============================
 // src/app/App.tsx
-// - Viewer uses swipe deck (Framer Motion)
-// - Fix: deckItems must recompute when viewer/panel changes (avoid stale empty memo)
-// - Fix: ViewerState is a union; use viewer.id only when viewer.isOpen === true
+// - Viewer uses swipe deck
+// - Fix: correct ViewerState (uses husketId, not id)
 // ===============================
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUiStore } from "../state/uiStore";
@@ -51,20 +50,13 @@ export function App() {
     window.setTimeout(() => setToast(null), 1500);
   }, []);
 
-  // Keep draft in sync when opening filters
   useEffect(() => {
     if (!filtersOpen) return;
     setDraftFavoriteOnly(!!albumFilters.favoriteOnly);
   }, [filtersOpen, albumFilters.favoriteOnly]);
 
-  const viewerId = useMemo(() => {
-    if (!viewer.isOpen) return null;
-    // In this codebase the open-state typically carries `id`
-    return (viewer as { isOpen: true; id: string }).id;
-  }, [viewer]);
+  const viewerId = viewer.isOpen ? viewer.husketId : null;
 
-  // Deck items: same as album list (active life + filters)
-  // IMPORTANT: must recompute when viewer/panel changes to avoid stale empty list without refresh.
   const deckItems: Husket[] = useMemo(() => {
     if (!activeLifeId) return [];
     const all = listByLife(activeLifeId, false);
@@ -72,7 +64,6 @@ export function App() {
     return all;
   }, [activeLifeId, albumFilters.favoriteOnly, panel, viewer.isOpen, viewerId]);
 
-  // Contract 9.1: If album is empty -> go directly to Capture
   useEffect(() => {
     if (!activeLifeId) return;
     if (panel !== "album") return;
@@ -83,11 +74,9 @@ export function App() {
     }
   }, [activeLifeId, panel, goToPanel]);
 
-  // --- two-panel swipe (Album <-> Capture)
   const drag = useRef<{ startX: number; startY: number; active: boolean } | null>(null);
 
   const onPointerDown = (e: React.PointerEvent) => {
-    // Prevent panel swipe while viewer/trash/filters are open
     if (filtersOpen || trashOpen || viewer.isOpen) return;
 
     const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
@@ -122,7 +111,7 @@ export function App() {
     }
   };
 
-  const versionLabel = useMemo(() => "Core v1 • offline • 0.1.8", []);
+  const versionLabel = useMemo(() => "Core v1 • offline • 0.1.10", []);
 
   if (boot === "splash") {
     return <SplashScreen onDone={() => setBoot("ready")} />;
@@ -153,7 +142,6 @@ export function App() {
     <div onPointerDown={onPointerDown} onPointerUp={onPointerUp}>
       <TopBar onOpenFilters={() => setFiltersOpen(true)} />
 
-      {/* Filters panel (v1: favorite only; structure matches contract) */}
       {filtersOpen ? (
         <div className="modalOverlay" onClick={() => setFiltersOpen(false)}>
           <div className="modalBox" onClick={(e) => e.stopPropagation()}>
@@ -181,10 +169,8 @@ export function App() {
         </div>
       ) : null}
 
-      {/* Trash (global admin) */}
       {trashOpen ? <TrashScreen onClose={closeTrash} onToast={toastNow} /> : null}
 
-      {/* Viewer (swipe deck) */}
       {viewer.isOpen && viewerId ? (
         <ViewerDeckModal
           items={deckItems}
@@ -195,7 +181,6 @@ export function App() {
         />
       ) : null}
 
-      {/* Screen content */}
       {panel === "album" ? (
         <AlbumScreen onOpenViewer={(id) => openViewer(id)} />
       ) : (
