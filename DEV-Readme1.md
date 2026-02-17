@@ -238,3 +238,16 @@ Fullskjerm-visning i Viewer lukkes nå tilbake til kort-bunken, ikke Album.
 🧱 Hvordan det er bygd (kort)
 
 Fullscreen-overlay stopper click-bubbling (stopPropagation) slik at klikk ikke når viewer-modalen sin overlay-lukking.
+
+Version update – Core v1 • v0.1.8
+✅ Endringer
+
+Viewer viser ikke lenger “Ingen kort å vise” uten refresh (deck-listen oppdateres når viewer/panel endres).
+
+Fullscreen lukker nå tilbake til kortstokken og kan ikke “tap-through” til album.
+
+👤 Brukeropplevelse
+
+Åpne thumbnail → viewer-bunke åpner stabilt.
+
+Åpne fullscreen → lukk med ✕ → tilbake til samme kort i bunken.
