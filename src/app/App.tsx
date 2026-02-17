@@ -1,10 +1,11 @@
 // ===============================
 // src/app/App.tsx
 // Wire-up / panel container / gestures (two-panel v1)
-// Now includes:
+// Includes:
 // - Auto redirect to Capture when album empty (contract 9.1)
 // - Filter panel (favoriteOnly) with Apply/Clear buttons
 // - Trash modal wiring
+// - Viewer modal wiring (favorite + delete -> trash)
 // ===============================
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUiStore } from "../state/uiStore";
@@ -17,6 +18,7 @@ import { BottomNav } from "../components/BottomNav";
 import { SettingsDrawer } from "../components/SettingsDrawer";
 import { ToastHost } from "../components/ToastHost";
 import { TrashScreen } from "../screens/TrashScreen";
+import { ViewerModal } from "../screens/ViewerModal";
 import { listByLife } from "../data/husketRepo";
 
 type BootPhase = "splash" | "ready";
@@ -28,7 +30,10 @@ export function App() {
   const activeLifeId = useUiStore((s) => s.activeLifeId);
   const panel = useUiStore((s) => s.panel);
   const goToPanel = useUiStore((s) => s.goToPanel);
+
+  const viewer = useUiStore((s) => s.viewer);
   const openViewer = useUiStore((s) => s.openViewer);
+  const closeViewer = useUiStore((s) => s.closeViewer);
 
   const bumpHint = useUiStore((s) => s.bumpPanelHint);
   const hintCount = useUiStore((s) => s.panelHintCount);
@@ -69,6 +74,9 @@ export function App() {
   const drag = useRef<{ startX: number; startY: number; active: boolean } | null>(null);
 
   const onPointerDown = (e: React.PointerEvent) => {
+    // Prevent panel swipe while viewer/trash/filters are open
+    if (filtersOpen || trashOpen || viewer.isOpen) return;
+
     const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
     if (tag === "textarea" || tag === "input" || tag === "button" || tag === "select") return;
 
@@ -101,7 +109,7 @@ export function App() {
     }
   };
 
-  const versionLabel = useMemo(() => "Core v1 • offline • 0.1.2", []);
+  const versionLabel = useMemo(() => "Core v1 • offline • 0.1.3", []);
 
   if (boot === "splash") {
     return <SplashScreen onDone={() => setBoot("ready")} />;
@@ -162,6 +170,11 @@ export function App() {
 
       {/* Trash (global admin) */}
       {trashOpen ? <TrashScreen onClose={closeTrash} onToast={toastNow} /> : null}
+
+      {/* Viewer (light modal) */}
+      {viewer.isOpen ? (
+        <ViewerModal husketId={viewer.husketId} onClose={closeViewer} onToast={toastNow} />
+      ) : null}
 
       {/* Screen content */}
       {panel === "album" ? (
