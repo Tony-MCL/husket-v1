@@ -54,11 +54,21 @@ export function CaptureScreen(props: { onToast: (msg: string) => void }) {
     const now = Date.now();
     const id = makeId();
 
+    // Demo image is an SVG we know the size of (900x900)
     const item: Husket = {
       id,
       lifeId: activeLifeId,
       createdAt: now,
       comment: trimmed ? trimmed : undefined,
+
+      // Required by your Husket type
+      imageMeta: {
+        mime: "image/svg+xml",
+        width: 900,
+        height: 900
+      },
+
+      // Core v1 skeleton: we store the image directly as data URL for now
       imageDataUrl: makeDemoImageDataUrl("husk’et")
     };
 
