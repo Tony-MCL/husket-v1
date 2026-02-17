@@ -93,3 +93,16 @@ Workflow trenger ikke lenger å injisere VITE_BASE.
 👤 Hvordan en fremtidig bruker forholder seg til dette
 
 Ingen synlig endring – appen bare laster faktisk på GitHub Pages uten whitescreen.
+
+Version update – v0.1.3 (Deploy config check)
+✅ Funksjoner lagt til
+
+Ingen app-funksjoner. Kun verifisering av deploy-kilde.
+
+🧱 Hvordan det er bygd (kort for oss)
+
+GitHub Pages må publisere fra Actions artifact (dist/), ikke repo-root.
+
+👤 Hvordan en fremtidig bruker forholder seg til dette
+
+Ingen synlig endring – appen bare laster.
