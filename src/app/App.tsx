@@ -2,6 +2,7 @@
 // src/app/App.tsx
 // - Viewer uses swipe deck (Framer Motion)
 // - Fix: deckItems must recompute when viewer/panel changes (avoid stale empty memo)
+// - Fix: ViewerState is a union; use viewer.id only when viewer.isOpen === true
 // ===============================
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUiStore } from "../state/uiStore";
@@ -56,6 +57,12 @@ export function App() {
     setDraftFavoriteOnly(!!albumFilters.favoriteOnly);
   }, [filtersOpen, albumFilters.favoriteOnly]);
 
+  const viewerId = useMemo(() => {
+    if (!viewer.isOpen) return null;
+    // In this codebase the open-state typically carries `id`
+    return (viewer as { isOpen: true; id: string }).id;
+  }, [viewer]);
+
   // Deck items: same as album list (active life + filters)
   // IMPORTANT: must recompute when viewer/panel changes to avoid stale empty list without refresh.
   const deckItems: Husket[] = useMemo(() => {
@@ -63,13 +70,7 @@ export function App() {
     const all = listByLife(activeLifeId, false);
     if (albumFilters.favoriteOnly) return all.filter((x) => x.isFavorite);
     return all;
-  }, [
-    activeLifeId,
-    albumFilters.favoriteOnly,
-    panel,
-    viewer.isOpen,
-    viewer.husketId
-  ]);
+  }, [activeLifeId, albumFilters.favoriteOnly, panel, viewer.isOpen, viewerId]);
 
   // Contract 9.1: If album is empty -> go directly to Capture
   useEffect(() => {
@@ -184,10 +185,10 @@ export function App() {
       {trashOpen ? <TrashScreen onClose={closeTrash} onToast={toastNow} /> : null}
 
       {/* Viewer (swipe deck) */}
-      {viewer.isOpen ? (
+      {viewer.isOpen && viewerId ? (
         <ViewerDeckModal
           items={deckItems}
-          husketId={viewer.husketId}
+          husketId={viewerId}
           onClose={closeViewer}
           onToast={toastNow}
           onNavigateToId={(id) => openViewer(id)}
