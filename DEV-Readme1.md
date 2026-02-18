@@ -268,3 +268,16 @@ ViewerState håndteres korrekt (bruker husketId)
 Ingen type-casting
 
 Build skal nå være grønn
+
+Version update – Core v1 • v0.1.11
+✅ Endring
+
+Fullscreen-lukking på mobil gir ikke lenger “multi-treff” (hamburger / viewer-lukk / osv).
+
+🧱 Hvordan det er bygd (kort)
+
+Ved fullscreen close aktiveres et transparent tap-shield i ~250ms som sluker pointer/click events og hindrer ghost click.
+
+👤 Brukeropplevelse
+
+Trykk ✕ i fullscreen → tilbake til kortstokk, uten at settings åpner eller viewer lukkes.
