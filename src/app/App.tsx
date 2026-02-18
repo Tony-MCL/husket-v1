@@ -2,8 +2,10 @@
 // src/app/App.tsx
 // - Viewer uses swipe deck
 // - Fix: correct ViewerState (uses husketId, not id)
-// - Global overlay lock: when any overlay/modal is open, make the rest of the app inert
-//   to prevent click-through across layers on mobile/desktop.
+// - FIX: Global "layer lock" done correctly:
+//   Do NOT set pointer-events:none on body (it makes overlays click-through).
+//   Instead, disable pointer events ONLY on the base chrome/content when any overlay is open.
+//   Overlays get explicit pointerEvents:auto + high z-index.
 // ===============================
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUiStore } from "../state/uiStore";
@@ -44,7 +46,7 @@ export function App() {
   const trashOpen = useUiStore((s) => s.trashOpen);
   const closeTrash = useUiStore((s) => s.closeTrash);
 
-  // SettingsDrawer: some builds keep this in store; if not present, we treat as false.
+  // Settings open flag: if store doesn’t have it, treat as false.
   const settingsOpen = useUiStore((s: any) => (typeof s.settingsOpen === "boolean" ? s.settingsOpen : false));
 
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -81,29 +83,15 @@ export function App() {
   }, [activeLifeId, panel, goToPanel]);
 
   // ===============================
-  // GLOBAL OVERLAY LOCK
-  // When an overlay is open, everything "under" must be inert.
-  // This prevents click-through across stacked layers (mobile ghost clicks etc.).
+  // Correct layer lock:
+  // When ANY overlay is open, disable pointer-events on base app chrome/content only.
+  // Overlays remain interactive.
   // ===============================
   const overlayActive = !!(viewer.isOpen || trashOpen || filtersOpen || settingsOpen);
 
-  useEffect(() => {
-    // Make the entire document inert, then allow only overlay roots to receive events
-    // (those overlays should have pointerEvents:auto themselves).
-    if (overlayActive) {
-      document.body.style.pointerEvents = "none";
-    } else {
-      document.body.style.pointerEvents = "";
-    }
-
-    return () => {
-      document.body.style.pointerEvents = "";
-    };
-  }, [overlayActive]);
-
   // ===============================
   // two-panel swipe (Album <-> Capture)
-  // Disabled whenever overlay is active
+  // disabled whenever overlayActive
   // ===============================
   const drag = useRef<{ startX: number; startY: number; active: boolean } | null>(null);
 
@@ -147,7 +135,7 @@ export function App() {
     }
   };
 
-  const versionLabel = useMemo(() => "Core v1 • offline • 0.1.14", []);
+  const versionLabel = useMemo(() => "Core v1 • offline • 0.1.15", []);
 
   if (boot === "splash") {
     return <SplashScreen onDone={() => setBoot("ready")} />;
@@ -174,25 +162,59 @@ export function App() {
     toastNow("Filtervalg tømt.");
   };
 
+  // Base app wrapper becomes inert when overlays are active
+  const baseShellStyle: React.CSSProperties = {
+    pointerEvents: overlayActive ? "none" : "auto",
+  };
+
+  // Common overlay host styles (always above TopBar)
+  const overlayHostStyle: React.CSSProperties = {
+    position: "fixed",
+    inset: 0,
+    zIndex: 2000000,
+    pointerEvents: "auto",
+  };
+
   return (
-    // NOTE: We keep pointer handlers on the shell; overlayActive disables them.
     <div onPointerDown={onPointerDown} onPointerUp={onPointerUp}>
-      {/* Base chrome */}
-      <TopBar onOpenFilters={() => setFiltersOpen(true)} />
-      <SettingsDrawer />
-      <BottomNav />
+      {/* ===============================
+          BASE APP (TopBar + content + BottomNav)
+          This is what we lock when an overlay is open.
+          =============================== */}
+      <div style={baseShellStyle}>
+        <TopBar onOpenFilters={() => setFiltersOpen(true)} />
+
+        {panel === "album" ? (
+          <AlbumScreen onOpenViewer={(id) => openViewer(id)} />
+        ) : (
+          <CaptureScreen onToast={toastNow} />
+        )}
+
+        <BottomNav />
+      </div>
+
+      {/* Toast + SettingsDrawer should ALWAYS remain clickable when they are actually open.
+          ToastHost is fine outside (it doesn't usually catch taps). */}
       <ToastHost message={toast} />
 
-      {/* Main content: will be inert when overlayActive=true because body pointer-events is none. */}
-      {panel === "album" ? (
-        <AlbumScreen onOpenViewer={(id) => openViewer(id)} />
+      {/* SettingsDrawer: force it ABOVE TopBar when open (prevents "drawer behind hamburger"). */}
+      {settingsOpen ? (
+        <div style={{ ...overlayHostStyle, zIndex: 3000000 }}>
+          <SettingsDrawer />
+        </div>
       ) : (
-        <CaptureScreen onToast={toastNow} />
+        <SettingsDrawer />
       )}
 
-      {/* Filters overlay (must explicitly allow pointer events) */}
+      {/* ===============================
+          OVERLAYS (must be interactive and on top)
+          =============================== */}
       {filtersOpen ? (
-        <div className="modalOverlay" style={{ pointerEvents: "auto" }} onClick={() => setFiltersOpen(false)}>
+        <div
+          className="modalOverlay"
+          style={{ ...overlayHostStyle, zIndex: 3500000 }}
+          onClick={() => setFiltersOpen(false)}
+        >
           <div className="modalBox" onClick={(e) => e.stopPropagation()}>
             <h3 className="modalTitle">Filter</h3>
 
@@ -218,16 +240,14 @@ export function App() {
         </div>
       ) : null}
 
-      {/* Trash overlay (allow pointer events) */}
       {trashOpen ? (
-        <div style={{ pointerEvents: "auto" }}>
+        <div style={{ ...overlayHostStyle, zIndex: 3600000 }}>
           <TrashScreen onClose={closeTrash} onToast={toastNow} />
         </div>
       ) : null}
 
-      {/* Viewer overlay (allow pointer events) */}
       {viewer.isOpen && viewerId ? (
-        <div style={{ pointerEvents: "auto" }}>
+        <div style={{ ...overlayHostStyle, zIndex: 3700000 }}>
           <ViewerDeckModal
             items={deckItems}
             husketId={viewerId}
