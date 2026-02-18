@@ -1,11 +1,13 @@
 // ===============================
 // src/components/HusketSwipeDeck.tsx
 // Viewer bunke + swipe (Framer Motion)
+//
 // FIXES:
-// - Fullscreen no longer closes the whole viewer (tap-through prevention)
-// - Fullscreen closes ONLY via ✕ button
+// - Mobile "tap-through/ghost click" when closing fullscreen.
+//   We add a short-lived transparent tap-shield to swallow the synthetic click
+//   that would otherwise hit underlying UI (TopBar hamburger, viewer close, etc.).
 // ===============================
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion, useAnimation, type PanInfo } from "framer-motion";
 import type { Husket } from "../domain/types";
 
@@ -29,18 +31,11 @@ function formatDate(ts: number) {
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",
-    minute: "2-digit"
+    minute: "2-digit",
   });
 }
 
-export function HusketSwipeDeck({
-  items,
-  index,
-  onSetIndex,
-  onClose,
-  onToggleFavorite,
-  onDeleteCurrent
-}: Props) {
+export function HusketSwipeDeck({ items, index, onSetIndex, onClose, onToggleFavorite, onDeleteCurrent }: Props) {
   const cur = items[index];
   const canOlder = index < items.length - 1;
   const canNewer = index > 0;
@@ -48,6 +43,10 @@ export function HusketSwipeDeck({
   const controls = useAnimation();
   const [showUnder, setShowUnder] = useState(false);
   const [fullOpen, setFullOpen] = useState(false);
+
+  // ✅ Tap-shield to prevent ghost clicks after closing fullscreen on mobile
+  const [tapShieldUntil, setTapShieldUntil] = useState<number>(0);
+  const shieldTimerRef = useRef<number | null>(null);
 
   const underIndex = useMemo(() => {
     if (canOlder) return index + 1;
@@ -64,17 +63,48 @@ export function HusketSwipeDeck({
   }, [cur?.id, controls]);
 
   useEffect(() => {
+    return () => {
+      if (shieldTimerRef.current != null) {
+        window.clearTimeout(shieldTimerRef.current);
+        shieldTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       if (fullOpen) {
-        setFullOpen(false);
+        closeFullscreenWithShield();
         return;
       }
       onClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fullOpen, onClose]);
+
+  const armTapShield = (ms: number) => {
+    const until = Date.now() + ms;
+    setTapShieldUntil(until);
+
+    if (shieldTimerRef.current != null) {
+      window.clearTimeout(shieldTimerRef.current);
+      shieldTimerRef.current = null;
+    }
+
+    shieldTimerRef.current = window.setTimeout(() => {
+      setTapShieldUntil(0);
+      shieldTimerRef.current = null;
+    }, ms + 20);
+  };
+
+  const closeFullscreenWithShield = () => {
+    // 250ms is enough to swallow the "ghost click" on iOS/Android browsers
+    armTapShield(250);
+    setFullOpen(false);
+  };
 
   const commitSwipe = async (dir: "left" | "right") => {
     if (fullOpen) return;
@@ -87,7 +117,7 @@ export function HusketSwipeDeck({
     await controls.start({
       x: exitX,
       rotate: dir === "left" ? -6 : 6,
-      transition: { type: "spring", stiffness: 420, damping: 34 }
+      transition: { type: "spring", stiffness: 420, damping: 34 },
     });
 
     if (dir === "left" && canOlder) onSetIndex(index + 1);
@@ -117,7 +147,7 @@ export function HusketSwipeDeck({
     display: "grid",
     placeItems: "center",
     padding: "0 12px",
-    isolation: "isolate"
+    isolation: "isolate",
   };
 
   const cardBase = (maxW: number): React.CSSProperties => ({
@@ -130,13 +160,13 @@ export function HusketSwipeDeck({
     boxShadow: "0 18px 40px rgba(0,0,0,0.18)",
     display: "grid",
     gridTemplateRows: "auto auto",
-    position: "relative"
+    position: "relative",
   });
 
   const imageFrame: React.CSSProperties = {
     padding: 12,
     display: "grid",
-    placeItems: "center"
+    placeItems: "center",
   };
 
   const imageShell: React.CSSProperties = {
@@ -148,26 +178,26 @@ export function HusketSwipeDeck({
     maxHeight: "min(58vh, 520px)",
     display: "grid",
     placeItems: "center",
-    cursor: "pointer"
+    cursor: "pointer",
   };
 
   const imgStyle: React.CSSProperties = {
     width: "100%",
     height: "100%",
     objectFit: "contain",
-    display: "block"
+    display: "block",
   };
 
   const meta: React.CSSProperties = {
     padding: "12px 14px 12px",
     display: "grid",
-    gap: 10
+    gap: 10,
   };
 
   const topBtns: React.CSSProperties = {
     position: "absolute",
     inset: 0,
-    pointerEvents: "none"
+    pointerEvents: "none",
   };
 
   const arrowBtn = (side: "left" | "right"): React.CSSProperties => ({
@@ -182,7 +212,7 @@ export function HusketSwipeDeck({
     borderRadius: 14,
     padding: "10px 12px",
     cursor: "pointer",
-    fontWeight: 800
+    fontWeight: 800,
   });
 
   const chip: React.CSSProperties = {
@@ -192,7 +222,7 @@ export function HusketSwipeDeck({
     margin: 0,
     color: "rgba(0,0,0,0.70)",
     fontSize: 13,
-    whiteSpace: "nowrap"
+    whiteSpace: "nowrap",
   };
 
   const row: React.CSSProperties = {
@@ -200,7 +230,7 @@ export function HusketSwipeDeck({
     justifyContent: "space-between",
     gap: 12,
     flexWrap: "wrap",
-    alignItems: "center"
+    alignItems: "center",
   };
 
   const actionRow: React.CSSProperties = {
@@ -210,7 +240,7 @@ export function HusketSwipeDeck({
     gap: 10,
     paddingTop: 2,
     borderTop: "1px solid rgba(0,0,0,0.08)",
-    marginTop: 6
+    marginTop: 6,
   };
 
   const actionBtn: React.CSSProperties = {
@@ -218,21 +248,20 @@ export function HusketSwipeDeck({
     background: "transparent",
     padding: "10px 0",
     cursor: "pointer",
-    fontSize: 14
+    fontSize: 14,
   };
 
   const dangerBtn: React.CSSProperties = {
     ...actionBtn,
     color: "rgba(190, 40, 40, 0.95)",
-    justifySelf: "start"
+    justifySelf: "start",
   };
 
   const closeBtn: React.CSSProperties = {
     ...actionBtn,
-    justifySelf: "end"
+    justifySelf: "end",
   };
 
-  // Fullscreen overlay: it must eat ALL pointer/click events so nothing "falls through".
   const fullOverlay: React.CSSProperties = {
     position: "fixed",
     inset: 0,
@@ -241,14 +270,14 @@ export function HusketSwipeDeck({
     display: "grid",
     gridTemplateRows: "auto 1fr",
     padding: "10px 10px calc(10px + env(safe-area-inset-bottom))",
-    touchAction: "none"
+    touchAction: "none",
   };
 
   const fullTop: React.CSSProperties = {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 10
+    gap: 10,
   };
 
   const fullClose: React.CSSProperties = {
@@ -258,25 +287,53 @@ export function HusketSwipeDeck({
     padding: "10px 14px",
     cursor: "pointer",
     fontSize: 16,
-    fontWeight: 800
+    fontWeight: 800,
   };
 
   const fullImgWrap: React.CSSProperties = {
     width: "100%",
     height: "100%",
     display: "grid",
-    placeItems: "center"
+    placeItems: "center",
   };
 
   const fullImg: React.CSSProperties = {
     maxWidth: "100%",
     maxHeight: "100%",
     objectFit: "contain",
-    display: "block"
+    display: "block",
   };
+
+  const shieldActive = tapShieldUntil > Date.now();
 
   return (
     <div style={wrap}>
+      {/* ✅ Tap-shield to swallow ghost clicks (must be above everything except fullscreen) */}
+      {shieldActive ? (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 99999,
+            background: "transparent",
+            pointerEvents: "all",
+            touchAction: "none",
+          }}
+          onPointerDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onPointerUp={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+        />
+      ) : null}
+
       {/* Under card (peek only while dragging) */}
       {underItem ? (
         <div
@@ -288,7 +345,7 @@ export function HusketSwipeDeck({
             pointerEvents: "none",
             opacity: underVisible ? 0.92 : 0,
             transform: underVisible ? "scale(0.975)" : "scale(1)",
-            transition: "opacity 140ms ease, transform 140ms ease"
+            transition: "opacity 140ms ease, transform 140ms ease",
           }}
         >
           <div style={cardBase(520 - 18)}>
@@ -323,21 +380,30 @@ export function HusketSwipeDeck({
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            // NOTE: background tap does NOT close fullscreen (avoids tap-through to viewer overlay)
+            // background tap does NOT close fullscreen
           }}
         >
           <div style={fullTop} onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
-              onClick={(e) => {
+              style={fullClose}
+              onPointerDown={(e) => {
+                // ✅ Close on pointerdown to avoid delayed click sequences
                 e.preventDefault();
                 e.stopPropagation();
-                setFullOpen(false);
+                closeFullscreenWithShield();
               }}
-              style={fullClose}
+              onClick={(e) => {
+                // Safety: stop any click that still fires
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              aria-label="Lukk fullskjerm"
+              title="Lukk"
             >
               ✕
             </button>
+
             <div style={{ color: "rgba(255,255,255,0.85)", fontWeight: 700 }}>
               {index + 1}/{items.length}
             </div>
@@ -386,7 +452,7 @@ export function HusketSwipeDeck({
           await controls.start({
             x: 0,
             rotate: 0,
-            transition: { type: "spring", stiffness: 520, damping: 36 }
+            transition: { type: "spring", stiffness: 520, damping: 36 },
           });
 
           setShowUnder(false);
