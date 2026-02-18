@@ -290,3 +290,12 @@ Fullscreen kan ikke lenger “trykke gjennom” til TopBar/Settings eller viewer
 Fullscreen ligger nå garantert over alt (maks z-index).
 
 Ved lukking monteres en kort global capture-blocker som svelger spøkelsesklikk.
+
+📦 Version update – Core v1 • v0.1.13
+🔧 Fix
+
+Fjernet ubrukt @ts-expect-error i global event-blocker
+
+TypeScript build grønn
+
+Ingen endring i funksjonalitet
