@@ -348,3 +348,22 @@ Lukking håndteres av kortets egne knapper (Lukk/Slett) + Escape.
 I kortstokken bruker man “Lukk” på kortet for å gå tilbake til album.
 
 Fullscreen har sin egen ✕ oppe til venstre og påvirker ikke andre lag.
+
+Version update – Core v1 • v0.1.16
+✅ Endring
+
+Fjernet ekstra “X” i viewer-overlay (den som lå under TopBar og kunne klikkes gjennom fullscreen).
+
+🧱 Hvordan det er bygd (kort)
+
+ViewerDeckModal viser kun swipe-deck.
+
+Lukking skjer via kortets “Lukk” (og Escape).
+
+Slett/favoritt kalles via husketRepo uten å anta eksakt export-navn (robust mot navnevariasjoner).
+
+👤 Brukeropplevelse
+
+Du lukker kortstokken med “Lukk” på kortet.
+
+Fullscreen har egen ✕ uten å trigge underliggende UI.
