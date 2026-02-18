@@ -82,9 +82,8 @@ export function HusketSwipeDeck({ items, index, onSetIndex, onClose, onToggleFav
       // ignore
     }
     try {
-      // stop all bubbling
-      // @ts-expect-error: stopImmediatePropagation exists on many event types
-      e.stopImmediatePropagation?.();
+      const anyEvent = e as unknown as { stopImmediatePropagation?: () => void };
+      anyEvent.stopImmediatePropagation?.();
     } catch {
       // ignore
     }
