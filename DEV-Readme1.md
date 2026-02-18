@@ -281,3 +281,12 @@ Ved fullscreen close aktiveres et transparent tap-shield i ~250ms som sluker poi
 👤 Brukeropplevelse
 
 Trykk ✕ i fullscreen → tilbake til kortstokk, uten at settings åpner eller viewer lukkes.
+
+Version update – Core v1 • v0.1.12
+✅ Endring
+
+Fullscreen kan ikke lenger “trykke gjennom” til TopBar/Settings eller viewer-overlay på mobil.
+
+Fullscreen ligger nå garantert over alt (maks z-index).
+
+Ved lukking monteres en kort global capture-blocker som svelger spøkelsesklikk.
