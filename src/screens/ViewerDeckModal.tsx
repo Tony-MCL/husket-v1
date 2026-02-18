@@ -1,13 +1,14 @@
 // ===============================
 // src/screens/ViewerDeckModal.tsx
 // - Overlay for viewer (deck)
-// - FIX: Remove the extra close "X" in the top-right (it caused layered click conflicts)
+// - FIX: Remove the extra close "X" in the top-right
 // - Close is handled by the card's own "Lukk" button (and Escape on desktop)
+// - Robust repo calls: do not assume exact export names for delete/trash
 // ===============================
 import React, { useEffect, useMemo, useState } from "react";
 import type { Husket } from "../domain/types";
 import { HusketSwipeDeck } from "../components/HusketSwipeDeck";
-import { deleteHusket, toggleFavorite } from "../data/husketRepo";
+import * as husketRepo from "../data/husketRepo";
 
 type Props = {
   items: Husket[];
@@ -20,6 +21,13 @@ type Props = {
 function clampIndex(i: number, len: number) {
   if (len <= 0) return 0;
   return Math.max(0, Math.min(len - 1, i));
+}
+
+function pickFn<T extends (...args: any[]) => any>(candidates: Array<T | undefined | null>): T | null {
+  for (const fn of candidates) {
+    if (typeof fn === "function") return fn;
+  }
+  return null;
 }
 
 export function ViewerDeckModal({ items, husketId, onClose, onToast, onNavigateToId }: Props) {
@@ -47,16 +55,37 @@ export function ViewerDeckModal({ items, husketId, onClose, onToast, onNavigateT
 
   useEffect(() => {
     if (!cur) return;
-    // Keep global viewer state in sync when user swipes
     if (cur.id !== husketId) onNavigateToId(cur.id);
   }, [cur?.id, husketId, onNavigateToId]);
 
-  const onDeleteCurrent = () => {
+  const deleteToTrashFn = useMemo(() => {
+    const m = husketRepo as any;
+    return pickFn([
+      m.deleteHusket,
+      m.trashHusket,
+      m.moveToTrash,
+      m.softDeleteHusket,
+      m.removeHusketToTrash,
+      m.deleteToTrash,
+    ]) as null | ((id: string) => unknown);
+  }, []);
+
+  const toggleFavoriteFn = useMemo(() => {
+    const m = husketRepo as any;
+    return pickFn([m.toggleFavorite, m.setFavorite, m.toggleHusketFavorite]) as null | ((id: string) => unknown);
+  }, []);
+
+  const onDeleteCurrent = async () => {
     if (!cur) return;
-    deleteHusket(cur.id);
+
+    if (!deleteToTrashFn) {
+      onToast("Fant ikke slett-funksjon i husketRepo.");
+      return;
+    }
+
+    await Promise.resolve(deleteToTrashFn(cur.id));
     onToast("Flyttet til papirkurv.");
 
-    // After deletion, decide what to show next
     const nextLen = items.length - 1;
     if (nextLen <= 0) {
       onClose();
@@ -65,9 +94,15 @@ export function ViewerDeckModal({ items, husketId, onClose, onToast, onNavigateT
     setIndex((prev) => clampIndex(prev, nextLen));
   };
 
-  const onToggleFav = () => {
+  const onToggleFav = async () => {
     if (!cur) return;
-    toggleFavorite(cur.id);
+
+    if (!toggleFavoriteFn) {
+      onToast("Fant ikke favoritt-funksjon i husketRepo.");
+      return;
+    }
+
+    await Promise.resolve(toggleFavoriteFn(cur.id));
     onToast(cur.isFavorite ? "Fjernet favoritt." : "Lagt til som favoritt.");
   };
 
@@ -80,9 +115,7 @@ export function ViewerDeckModal({ items, husketId, onClose, onToast, onNavigateT
         zIndex: 1000000,
         pointerEvents: "auto",
       }}
-      // Backdrop click closes viewer (optional, keeps it intuitive)
       onClick={() => onClose()}
-      // Stop pointer events from bubbling into the app shell
       onPointerDown={(e) => e.stopPropagation()}
       onPointerUp={(e) => e.stopPropagation()}
     >
@@ -99,8 +132,8 @@ export function ViewerDeckModal({ items, husketId, onClose, onToast, onNavigateT
           index={index}
           onSetIndex={(next) => setIndex(next)}
           onClose={onClose}
-          onToggleFavorite={onToggleFav}
-          onDeleteCurrent={onDeleteCurrent}
+          onToggleFavorite={() => void onToggleFav()}
+          onDeleteCurrent={() => void onDeleteCurrent()}
         />
       </div>
     </div>
