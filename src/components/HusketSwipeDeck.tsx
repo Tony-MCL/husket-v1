@@ -2,10 +2,11 @@
 // src/components/HusketSwipeDeck.tsx
 // Viewer bunke + swipe (Framer Motion)
 //
-// FIXES:
-// - Mobile "tap-through/ghost click" when closing fullscreen.
-//   We add a short-lived transparent tap-shield to swallow the synthetic click
-//   that would otherwise hit underlying UI (TopBar hamburger, viewer close, etc.).
+// HARD FIX for mobile ghost/tap-through:
+// 1) Fullscreen overlay gets max z-index so nothing can sit above (TopBar/hamburger).
+// 2) When closing fullscreen, we install a short-lived GLOBAL capture-phase event blocker
+//    (document addEventListener with capture:true) that swallows pointerup/touchend/click.
+//    This prevents the synthetic "next click" from landing on underlying UI.
 // ===============================
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion, useAnimation, type PanInfo } from "framer-motion";
@@ -44,9 +45,9 @@ export function HusketSwipeDeck({ items, index, onSetIndex, onClose, onToggleFav
   const [showUnder, setShowUnder] = useState(false);
   const [fullOpen, setFullOpen] = useState(false);
 
-  // ✅ Tap-shield to prevent ghost clicks after closing fullscreen on mobile
-  const [tapShieldUntil, setTapShieldUntil] = useState<number>(0);
+  // Global shield timer
   const shieldTimerRef = useRef<number | null>(null);
+  const shieldActiveRef = useRef(false);
 
   const underIndex = useMemo(() => {
     if (canOlder) return index + 1;
@@ -68,14 +69,76 @@ export function HusketSwipeDeck({ items, index, onSetIndex, onClose, onToggleFav
         window.clearTimeout(shieldTimerRef.current);
         shieldTimerRef.current = null;
       }
+      uninstallGlobalBlocker();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const blockerHandler = (e: Event) => {
+    if (!shieldActiveRef.current) return;
+    try {
+      e.preventDefault();
+    } catch {
+      // ignore
+    }
+    try {
+      // stop all bubbling
+      // @ts-expect-error: stopImmediatePropagation exists on many event types
+      e.stopImmediatePropagation?.();
+    } catch {
+      // ignore
+    }
+    try {
+      e.stopPropagation();
+    } catch {
+      // ignore
+    }
+  };
+
+  const installGlobalBlocker = () => {
+    // Capture-phase: runs before React + before underlying elements
+    document.addEventListener("pointerup", blockerHandler, true);
+    document.addEventListener("pointerdown", blockerHandler, true);
+    document.addEventListener("click", blockerHandler, true);
+    document.addEventListener("touchend", blockerHandler, true);
+    document.addEventListener("touchstart", blockerHandler, true);
+  };
+
+  const uninstallGlobalBlocker = () => {
+    document.removeEventListener("pointerup", blockerHandler, true);
+    document.removeEventListener("pointerdown", blockerHandler, true);
+    document.removeEventListener("click", blockerHandler, true);
+    document.removeEventListener("touchend", blockerHandler, true);
+    document.removeEventListener("touchstart", blockerHandler, true);
+  };
+
+  const armGlobalShield = (ms: number) => {
+    shieldActiveRef.current = true;
+    installGlobalBlocker();
+
+    if (shieldTimerRef.current != null) {
+      window.clearTimeout(shieldTimerRef.current);
+      shieldTimerRef.current = null;
+    }
+
+    shieldTimerRef.current = window.setTimeout(() => {
+      shieldActiveRef.current = false;
+      uninstallGlobalBlocker();
+      shieldTimerRef.current = null;
+    }, ms);
+  };
+
+  const closeFullscreenHard = () => {
+    // Shield must be armed BEFORE unmount to catch the synthetic follow-up click.
+    armGlobalShield(400);
+    setFullOpen(false);
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       if (fullOpen) {
-        closeFullscreenWithShield();
+        closeFullscreenHard();
         return;
       }
       onClose();
@@ -84,27 +147,6 @@ export function HusketSwipeDeck({ items, index, onSetIndex, onClose, onToggleFav
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fullOpen, onClose]);
-
-  const armTapShield = (ms: number) => {
-    const until = Date.now() + ms;
-    setTapShieldUntil(until);
-
-    if (shieldTimerRef.current != null) {
-      window.clearTimeout(shieldTimerRef.current);
-      shieldTimerRef.current = null;
-    }
-
-    shieldTimerRef.current = window.setTimeout(() => {
-      setTapShieldUntil(0);
-      shieldTimerRef.current = null;
-    }, ms + 20);
-  };
-
-  const closeFullscreenWithShield = () => {
-    // 250ms is enough to swallow the "ghost click" on iOS/Android browsers
-    armTapShield(250);
-    setFullOpen(false);
-  };
 
   const commitSwipe = async (dir: "left" | "right") => {
     if (fullOpen) return;
@@ -262,10 +304,11 @@ export function HusketSwipeDeck({ items, index, onSetIndex, onClose, onToggleFav
     justifySelf: "end",
   };
 
+  // Max z-index to beat any app chrome (TopBar/SettingsDrawer/etc.)
   const fullOverlay: React.CSSProperties = {
     position: "fixed",
     inset: 0,
-    zIndex: 100000,
+    zIndex: 2147483647,
     background: "rgba(0,0,0,0.92)",
     display: "grid",
     gridTemplateRows: "auto 1fr",
@@ -304,36 +347,8 @@ export function HusketSwipeDeck({ items, index, onSetIndex, onClose, onToggleFav
     display: "block",
   };
 
-  const shieldActive = tapShieldUntil > Date.now();
-
   return (
     <div style={wrap}>
-      {/* ✅ Tap-shield to swallow ghost clicks (must be above everything except fullscreen) */}
-      {shieldActive ? (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 99999,
-            background: "transparent",
-            pointerEvents: "all",
-            touchAction: "none",
-          }}
-          onPointerDown={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-          }}
-          onPointerUp={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-          }}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-          }}
-        />
-      ) : null}
-
       {/* Under card (peek only while dragging) */}
       {underItem ? (
         <div
@@ -369,6 +384,7 @@ export function HusketSwipeDeck({ items, index, onSetIndex, onClose, onToggleFav
           role="dialog"
           aria-modal="true"
           style={fullOverlay}
+          // Eat events while fullscreen is open
           onPointerDown={(e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -380,21 +396,32 @@ export function HusketSwipeDeck({ items, index, onSetIndex, onClose, onToggleFav
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            // background tap does NOT close fullscreen
+          }}
+          onTouchStart={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onTouchEnd={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
           }}
         >
           <div style={fullTop} onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
               style={fullClose}
+              // Close on pointerdown/touchstart so we beat delayed click sequences
               onPointerDown={(e) => {
-                // ✅ Close on pointerdown to avoid delayed click sequences
                 e.preventDefault();
                 e.stopPropagation();
-                closeFullscreenWithShield();
+                closeFullscreenHard();
+              }}
+              onTouchStart={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                closeFullscreenHard();
               }}
               onClick={(e) => {
-                // Safety: stop any click that still fires
                 e.preventDefault();
                 e.stopPropagation();
               }}
