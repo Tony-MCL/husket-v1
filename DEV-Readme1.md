@@ -331,3 +331,20 @@ SettingsDrawer tvinges over TopBar når den er åpen (slipper “bak hamburger�
 Når fullview / viewer / meny er åpen, kan du lukke kun det laget du ser — uten å trigge knapper under.
 
 Menyen kan lukkes normalt fordi den faktisk ligger over TopBar.
+
+Version update – Core v1 • v0.1.16
+✅ Endring
+
+Fjernet ekstra “X”-knapp i viewer-laget (den som lå under TopBar og skapte lag-konflikt).
+
+🧱 Hvordan det er bygd (kort)
+
+ViewerDeckModal er nå kun et overlay som viser swipe-deck.
+
+Lukking håndteres av kortets egne knapper (Lukk/Slett) + Escape.
+
+👤 Brukeropplevelse
+
+I kortstokken bruker man “Lukk” på kortet for å gå tilbake til album.
+
+Fullscreen har sin egen ✕ oppe til venstre og påvirker ikke andre lag.
