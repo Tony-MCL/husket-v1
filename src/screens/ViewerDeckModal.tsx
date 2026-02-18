@@ -1,131 +1,106 @@
 // ===============================
 // src/screens/ViewerDeckModal.tsx
-// Wrapper for HusketSwipeDeck
-// IMPORTANT: Do NOT use "modalBox" here (it may cover the whole screen and block clicks).
+// - Overlay for viewer (deck)
+// - FIX: Remove the extra close "X" in the top-right (it caused layered click conflicts)
+// - Close is handled by the card's own "Lukk" button (and Escape on desktop)
 // ===============================
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import type { Husket } from "../domain/types";
 import { HusketSwipeDeck } from "../components/HusketSwipeDeck";
-import { toggleFavorite, softDelete } from "../data/husketRepo";
+import { deleteHusket, toggleFavorite } from "../data/husketRepo";
 
-export function ViewerDeckModal(props: {
+type Props = {
   items: Husket[];
   husketId: string;
   onClose: () => void;
   onToast: (msg: string) => void;
   onNavigateToId: (id: string) => void;
-}) {
-  const { items, husketId, onClose, onToast, onNavigateToId } = props;
+};
 
-  const index = useMemo(() => {
-    const i = items.findIndex((x) => x.id === husketId);
-    return i >= 0 ? i : 0;
+function clampIndex(i: number, len: number) {
+  if (len <= 0) return 0;
+  return Math.max(0, Math.min(len - 1, i));
+}
+
+export function ViewerDeckModal({ items, husketId, onClose, onToast, onNavigateToId }: Props) {
+  const initialIndex = useMemo(() => {
+    const idx = items.findIndex((x) => x.id === husketId);
+    return idx >= 0 ? idx : 0;
   }, [items, husketId]);
 
-  const current = items[index];
+  const [index, setIndex] = useState(initialIndex);
 
-  const doSetIndex = (nextIndex: number) => {
-    const next = items[nextIndex];
-    if (!next) return;
-    onNavigateToId(next.id);
-  };
+  useEffect(() => {
+    setIndex(initialIndex);
+  }, [initialIndex]);
 
-  const doToggleFavorite = () => {
-    if (!current) return;
-    toggleFavorite(current.id);
-    onToast(current.isFavorite ? "Fjernet favoritt." : "Lagt til som favoritt.");
-    onNavigateToId(current.id);
-  };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
-  const doDelete = () => {
-    if (!current) return;
-    const ok = window.confirm("Flytt dette husk’et til papirkurv?");
-    if (!ok) return;
+  const cur = items[index];
 
-    softDelete(current.id);
+  useEffect(() => {
+    if (!cur) return;
+    // Keep global viewer state in sync when user swipes
+    if (cur.id !== husketId) onNavigateToId(cur.id);
+  }, [cur?.id, husketId, onNavigateToId]);
+
+  const onDeleteCurrent = () => {
+    if (!cur) return;
+    deleteHusket(cur.id);
     onToast("Flyttet til papirkurv.");
 
-    const remaining = items.filter((x) => x.id !== current.id);
-    if (remaining.length === 0) {
+    // After deletion, decide what to show next
+    const nextLen = items.length - 1;
+    if (nextLen <= 0) {
       onClose();
       return;
     }
-
-    const nextIndex = Math.min(index, remaining.length - 1);
-    const next = remaining[nextIndex];
-    if (!next) {
-      onClose();
-      return;
-    }
-
-    onNavigateToId(next.id);
+    setIndex((prev) => clampIndex(prev, nextLen));
   };
 
-  // If the deck is empty, show a safe close UI (should not happen if Album had items)
-  if (items.length === 0) {
-    return (
-      <div className="modalOverlay" onClick={onClose}>
-        <div
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            width: "min(92vw, 560px)",
-            background: "rgba(255,255,255,0.92)",
-            borderRadius: 16,
-            border: "1px solid rgba(0,0,0,0.10)",
-            padding: 14
-          }}
-        >
-          <div style={{ fontWeight: 800, marginBottom: 8 }}>Viewer</div>
-          <div className="smallHelp">Ingen kort å vise.</div>
-          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
-            <button className="flatBtn" onClick={onClose}>
-              Lukk
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const onToggleFav = () => {
+    if (!cur) return;
+    toggleFavorite(cur.id);
+    onToast(cur.isFavorite ? "Fjernet favoritt." : "Lagt til som favoritt.");
+  };
 
   return (
-    <div className="modalOverlay" onClick={onClose}>
-      {/* IMPORTANT: this container must NOT cover the whole screen */}
+    <div
+      className="modalOverlay"
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 1000000,
+        pointerEvents: "auto",
+      }}
+      // Backdrop click closes viewer (optional, keeps it intuitive)
+      onClick={() => onClose()}
+      // Stop pointer events from bubbling into the app shell
+      onPointerDown={(e) => e.stopPropagation()}
+      onPointerUp={(e) => e.stopPropagation()}
+    >
       <div
-        onClick={(e) => e.stopPropagation()}
         style={{
-          width: "min(92vw, 560px)",
-          height: "min(86vh, 860px)",
-          position: "relative",
-          borderRadius: 22,
-          overflow: "visible"
+          position: "absolute",
+          inset: 0,
+          display: "grid",
         }}
+        onClick={(e) => e.stopPropagation()}
       >
-        {/* Always-visible close button (so user is never stuck) */}
-        <button
-          type="button"
-          className="flatBtn"
-          onClick={onClose}
-          style={{
-            position: "absolute",
-            top: -6,
-            right: -6,
-            zIndex: 2000,
-            background: "rgba(255,255,255,0.75)",
-            backdropFilter: "blur(8px)"
-          }}
-          aria-label="Lukk viewer"
-          title="Lukk"
-        >
-          ✕
-        </button>
-
         <HusketSwipeDeck
           items={items}
           index={index}
-          onSetIndex={doSetIndex}
+          onSetIndex={(next) => setIndex(next)}
           onClose={onClose}
-          onToggleFavorite={doToggleFavorite}
-          onDeleteCurrent={doDelete}
+          onToggleFavorite={onToggleFav}
+          onDeleteCurrent={onDeleteCurrent}
         />
       </div>
     </div>
