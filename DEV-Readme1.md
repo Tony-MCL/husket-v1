@@ -299,3 +299,35 @@ Fjernet ubrukt @ts-expect-error i global event-blocker
 TypeScript build grønn
 
 Ingen endring i funksjonalitet
+
+Version update – Core v1 • v0.1.14
+✅ Funksjon lagt til
+
+Global “overlay lock” som hindrer klikk gjennom lag når viewer/modaler/panels er åpne.
+
+🧱 Hvordan det er bygd (kort)
+
+Når et overlay er aktivt settes document.body.style.pointerEvents = "none".
+
+Overlay-wrappere får pointerEvents: "auto" slik at de fortsatt kan brukes.
+
+👤 Brukeropplevelse
+
+Når en modal/viewer er åpen, er alt under “låst”.
+
+Du kan ikke trigge hamburger/andre knapper under ved feiltrykk eller mobil “ghost click”.
+
+Version update – Core v1 • v0.1.15
+✅ Endring
+
+Klikk gjennom lag stoppes globalt ved å gjøre kun base-UI inert når overlays er åpne.
+
+Overlays (viewer/filter/trash/settings) rendres i egne “hosts” med høy z-index og pointerEvents:auto.
+
+SettingsDrawer tvinges over TopBar når den er åpen (slipper “bak hamburger”).
+
+👤 Brukeropplevelse
+
+Når fullview / viewer / meny er åpen, kan du lukke kun det laget du ser — uten å trigge knapper under.
+
+Menyen kan lukkes normalt fordi den faktisk ligger over TopBar.
