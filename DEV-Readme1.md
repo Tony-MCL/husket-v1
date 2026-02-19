@@ -500,3 +500,13 @@ Repo har fått setCategory(id, categoryId?). Viewer-kortstokken tilbyr en enkel 
 
 👤 Hvordan en fremtidig bruker forholder seg til dette
 Brukeren kan rydde og organisere minner ved å sette kategori i ettertid, uten å endre bilde eller rating, og kan senere filtrere på kategorier.
+
+Version update – Core v1 • v0.2.8
+✅ Funksjoner lagt til
+Capture støtter nå valgfri kategori ved opprettelse av husk’et. Bruker kan velge eksisterende kategori fra aktivt liv eller skrive inn en ny.
+
+🧱 Hvordan det er bygd (kort)
+Capture henter eksisterende kategorier fra lokale data (listByLife) og tilbyr enten dropdown eller fritekst. categoryId lagres direkte i Husket ved upsert().
+
+👤 Hvordan en fremtidig bruker forholder seg til dette
+Brukeren kan kategorisere minner allerede når de opprettes, og kan fortsatt endre/fjerne kategori i ettertid i Viewer.
