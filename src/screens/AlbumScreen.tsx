@@ -1,10 +1,8 @@
 // ===============================
 // src/screens/AlbumScreen.tsx
-// Minimal v1 skeleton (grid + empty state)
 //
-// v0.2.6:
-// - Album uses shared filter motor (category/rating/date + favoriteOnly)
-// - Album reacts to repo writes (subscribeRepo tick)
+// v0.2.7:
+// - show category badge in meta (simple)
 // ===============================
 import React, { useEffect, useMemo, useState } from "react";
 import { useUiStore } from "../state/uiStore";
@@ -31,9 +29,7 @@ export function AlbumScreen(props: { onOpenViewer: (id: string) => void }) {
     void repoTick;
 
     const all = listByLife(activeLifeId, false);
-    const filtered = applyAlbumFilters(all, filters);
-
-    return filtered;
+    return applyAlbumFilters(all, filters);
   }, [
     activeLifeId,
     repoTick,
@@ -80,9 +76,9 @@ export function AlbumScreen(props: { onOpenViewer: (id: string) => void }) {
               onClick={() => onOpenViewer(h.id)}
             >
               <img className="thumbImg" src={h.imageDataUrl} alt="" />
-              <div className="thumbMeta">
+              <div className="thumbMeta" style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
                 <span>{new Date(h.createdAt).toLocaleDateString("no-NO")}</span>
-                <span className="badge">{h.isFavorite ? "★" : "—"}</span>
+                <span className="badge">{h.categoryId ? `🏷` : "—"}</span>
               </div>
             </button>
           ))}
