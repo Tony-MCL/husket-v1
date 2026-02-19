@@ -2,11 +2,9 @@
 // src/components/HusketSwipeDeck.tsx
 // Viewer bunke + swipe (Framer Motion)
 //
-// HARD FIX for mobile ghost/tap-through:
-// 1) Fullscreen overlay gets max z-index so nothing can sit above (TopBar/hamburger).
-// 2) When closing fullscreen, we install a short-lived GLOBAL capture-phase event blocker
-//    (document addEventListener with capture:true) that swallows pointerup/touchend/click.
-//    This prevents the synthetic "next click" from landing on underlying UI.
+// v0.2.7:
+// - show category + edit category (select existing / type new / clear)
+// - category editing is local UI; write happens via prop onSetCategory
 // ===============================
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion, useAnimation, type PanInfo } from "framer-motion";
@@ -20,6 +18,9 @@ type Props = {
   onClose: () => void;
   onToggleFavorite: () => void;
   onDeleteCurrent: () => void;
+
+  // v0.2.7
+  onSetCategory: (categoryId?: string) => void;
 };
 
 function clamp(n: number, a: number, b: number) {
@@ -32,11 +33,25 @@ function formatDate(ts: number) {
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",
-    minute: "2-digit",
+    minute: "2-digit"
   });
 }
 
-export function HusketSwipeDeck({ items, index, onSetIndex, onClose, onToggleFavorite, onDeleteCurrent }: Props) {
+function uniqSorted(values: Array<string | undefined>): string[] {
+  const s = new Set<string>();
+  for (const v of values) if (typeof v === "string" && v.trim()) s.add(v.trim());
+  return Array.from(s).sort((a, b) => a.localeCompare(b));
+}
+
+export function HusketSwipeDeck({
+  items,
+  index,
+  onSetIndex,
+  onClose,
+  onToggleFavorite,
+  onDeleteCurrent,
+  onSetCategory
+}: Props) {
   const cur = items[index];
   const canOlder = index < items.length - 1;
   const canNewer = index > 0;
@@ -44,6 +59,14 @@ export function HusketSwipeDeck({ items, index, onSetIndex, onClose, onToggleFav
   const controls = useAnimation();
   const [showUnder, setShowUnder] = useState(false);
   const [fullOpen, setFullOpen] = useState(false);
+
+  // Category editor
+  const [catOpen, setCatOpen] = useState(false);
+  const [catDraft, setCatDraft] = useState("");
+
+  const categoryOptions = useMemo(() => {
+    return uniqSorted(items.map((x) => x.categoryId));
+  }, [items]);
 
   // Global shield timer
   const shieldTimerRef = useRef<number | null>(null);
@@ -60,6 +83,8 @@ export function HusketSwipeDeck({ items, index, onSetIndex, onClose, onToggleFav
   useEffect(() => {
     setFullOpen(false);
     setShowUnder(false);
+    setCatOpen(false);
+    setCatDraft("");
     controls.set({ x: 0, rotate: 0 });
   }, [cur?.id, controls]);
 
@@ -78,24 +103,17 @@ export function HusketSwipeDeck({ items, index, onSetIndex, onClose, onToggleFav
     if (!shieldActiveRef.current) return;
     try {
       e.preventDefault();
-    } catch {
-      // ignore
-    }
+    } catch {}
     try {
       const anyEvent = e as unknown as { stopImmediatePropagation?: () => void };
       anyEvent.stopImmediatePropagation?.();
-    } catch {
-      // ignore
-    }
+    } catch {}
     try {
       e.stopPropagation();
-    } catch {
-      // ignore
-    }
+    } catch {}
   };
 
   const installGlobalBlocker = () => {
-    // Capture-phase: runs before React + before underlying elements
     document.addEventListener("pointerup", blockerHandler, true);
     document.addEventListener("pointerdown", blockerHandler, true);
     document.addEventListener("click", blockerHandler, true);
@@ -128,7 +146,6 @@ export function HusketSwipeDeck({ items, index, onSetIndex, onClose, onToggleFav
   };
 
   const closeFullscreenHard = () => {
-    // Shield must be armed BEFORE unmount to catch the synthetic follow-up click.
     armGlobalShield(400);
     setFullOpen(false);
   };
@@ -136,6 +153,10 @@ export function HusketSwipeDeck({ items, index, onSetIndex, onClose, onToggleFav
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
+      if (catOpen) {
+        setCatOpen(false);
+        return;
+      }
       if (fullOpen) {
         closeFullscreenHard();
         return;
@@ -145,10 +166,10 @@ export function HusketSwipeDeck({ items, index, onSetIndex, onClose, onToggleFav
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fullOpen, onClose]);
+  }, [fullOpen, catOpen, onClose]);
 
   const commitSwipe = async (dir: "left" | "right") => {
-    if (fullOpen) return;
+    if (fullOpen || catOpen) return;
 
     setShowUnder(true);
 
@@ -158,7 +179,7 @@ export function HusketSwipeDeck({ items, index, onSetIndex, onClose, onToggleFav
     await controls.start({
       x: exitX,
       rotate: dir === "left" ? -6 : 6,
-      transition: { type: "spring", stiffness: 420, damping: 34 },
+      transition: { type: "spring", stiffness: 420, damping: 34 }
     });
 
     if (dir === "left" && canOlder) onSetIndex(index + 1);
@@ -180,7 +201,7 @@ export function HusketSwipeDeck({ items, index, onSetIndex, onClose, onToggleFav
 
   if (!cur) return null;
 
-  const underVisible = showUnder && !fullOpen;
+  const underVisible = showUnder && !fullOpen && !catOpen;
 
   const wrap: React.CSSProperties = {
     position: "relative",
@@ -188,7 +209,7 @@ export function HusketSwipeDeck({ items, index, onSetIndex, onClose, onToggleFav
     display: "grid",
     placeItems: "center",
     padding: "0 12px",
-    isolation: "isolate",
+    isolation: "isolate"
   };
 
   const cardBase = (maxW: number): React.CSSProperties => ({
@@ -201,13 +222,13 @@ export function HusketSwipeDeck({ items, index, onSetIndex, onClose, onToggleFav
     boxShadow: "0 18px 40px rgba(0,0,0,0.18)",
     display: "grid",
     gridTemplateRows: "auto auto",
-    position: "relative",
+    position: "relative"
   });
 
   const imageFrame: React.CSSProperties = {
     padding: 12,
     display: "grid",
-    placeItems: "center",
+    placeItems: "center"
   };
 
   const imageShell: React.CSSProperties = {
@@ -219,26 +240,26 @@ export function HusketSwipeDeck({ items, index, onSetIndex, onClose, onToggleFav
     maxHeight: "min(58vh, 520px)",
     display: "grid",
     placeItems: "center",
-    cursor: "pointer",
+    cursor: "pointer"
   };
 
   const imgStyle: React.CSSProperties = {
     width: "100%",
     height: "100%",
     objectFit: "contain",
-    display: "block",
+    display: "block"
   };
 
   const meta: React.CSSProperties = {
     padding: "12px 14px 12px",
     display: "grid",
-    gap: 10,
+    gap: 10
   };
 
   const topBtns: React.CSSProperties = {
     position: "absolute",
     inset: 0,
-    pointerEvents: "none",
+    pointerEvents: "none"
   };
 
   const arrowBtn = (side: "left" | "right"): React.CSSProperties => ({
@@ -253,7 +274,7 @@ export function HusketSwipeDeck({ items, index, onSetIndex, onClose, onToggleFav
     borderRadius: 14,
     padding: "10px 12px",
     cursor: "pointer",
-    fontWeight: 800,
+    fontWeight: 800
   });
 
   const chip: React.CSSProperties = {
@@ -263,7 +284,7 @@ export function HusketSwipeDeck({ items, index, onSetIndex, onClose, onToggleFav
     margin: 0,
     color: "rgba(0,0,0,0.70)",
     fontSize: 13,
-    whiteSpace: "nowrap",
+    whiteSpace: "nowrap"
   };
 
   const row: React.CSSProperties = {
@@ -271,7 +292,7 @@ export function HusketSwipeDeck({ items, index, onSetIndex, onClose, onToggleFav
     justifyContent: "space-between",
     gap: 12,
     flexWrap: "wrap",
-    alignItems: "center",
+    alignItems: "center"
   };
 
   const actionRow: React.CSSProperties = {
@@ -281,7 +302,7 @@ export function HusketSwipeDeck({ items, index, onSetIndex, onClose, onToggleFav
     gap: 10,
     paddingTop: 2,
     borderTop: "1px solid rgba(0,0,0,0.08)",
-    marginTop: 6,
+    marginTop: 6
   };
 
   const actionBtn: React.CSSProperties = {
@@ -289,21 +310,20 @@ export function HusketSwipeDeck({ items, index, onSetIndex, onClose, onToggleFav
     background: "transparent",
     padding: "10px 0",
     cursor: "pointer",
-    fontSize: 14,
+    fontSize: 14
   };
 
   const dangerBtn: React.CSSProperties = {
     ...actionBtn,
     color: "rgba(190, 40, 40, 0.95)",
-    justifySelf: "start",
+    justifySelf: "start"
   };
 
   const closeBtn: React.CSSProperties = {
     ...actionBtn,
-    justifySelf: "end",
+    justifySelf: "end"
   };
 
-  // Max z-index to beat any app chrome (TopBar/SettingsDrawer/etc.)
   const fullOverlay: React.CSSProperties = {
     position: "fixed",
     inset: 0,
@@ -312,14 +332,14 @@ export function HusketSwipeDeck({ items, index, onSetIndex, onClose, onToggleFav
     display: "grid",
     gridTemplateRows: "auto 1fr",
     padding: "10px 10px calc(10px + env(safe-area-inset-bottom))",
-    touchAction: "none",
+    touchAction: "none"
   };
 
   const fullTop: React.CSSProperties = {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 10,
+    gap: 10
   };
 
   const fullClose: React.CSSProperties = {
@@ -329,26 +349,97 @@ export function HusketSwipeDeck({ items, index, onSetIndex, onClose, onToggleFav
     padding: "10px 14px",
     cursor: "pointer",
     fontSize: 16,
-    fontWeight: 800,
+    fontWeight: 800
   };
 
   const fullImgWrap: React.CSSProperties = {
     width: "100%",
     height: "100%",
     display: "grid",
-    placeItems: "center",
+    placeItems: "center"
   };
 
   const fullImg: React.CSSProperties = {
     maxWidth: "100%",
     maxHeight: "100%",
     objectFit: "contain",
-    display: "block",
+    display: "block"
+  };
+
+  // Category modal styles
+  const catOverlay: React.CSSProperties = {
+    position: "fixed",
+    inset: 0,
+    zIndex: 2147483000,
+    background: "rgba(0,0,0,0.42)",
+    display: "grid",
+    placeItems: "center",
+    padding: 14
+  };
+
+  const catBox: React.CSSProperties = {
+    width: "min(520px, 100%)",
+    borderRadius: 18,
+    border: "1px solid rgba(0,0,0,0.10)",
+    background: "rgba(255,255,255,0.96)",
+    boxShadow: "0 18px 40px rgba(0,0,0,0.18)",
+    padding: 14,
+    display: "grid",
+    gap: 10
+  };
+
+  const catInput: React.CSSProperties = {
+    width: "100%",
+    borderRadius: 14,
+    border: "1px solid rgba(0,0,0,0.12)",
+    padding: "10px 12px",
+    fontSize: 14,
+    outline: "none"
+  };
+
+  const catPills: React.CSSProperties = {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: 8
+  };
+
+  const pill: React.CSSProperties = {
+    border: "1px solid rgba(0,0,0,0.10)",
+    background: "rgba(255,255,255,0.75)",
+    backdropFilter: "blur(8px)",
+    borderRadius: 999,
+    padding: "8px 10px",
+    cursor: "pointer",
+    fontWeight: 800,
+    fontSize: 13
+  };
+
+  const catActions: React.CSSProperties = {
+    display: "flex",
+    gap: 10,
+    justifyContent: "flex-end",
+    flexWrap: "wrap",
+    marginTop: 4
+  };
+
+  const solidBtn: React.CSSProperties = {
+    border: "1px solid rgba(0,0,0,0.12)",
+    background: "rgba(255,255,255,0.85)",
+    borderRadius: 14,
+    padding: "10px 12px",
+    cursor: "pointer",
+    fontWeight: 800
+  };
+
+  const primaryBtn: React.CSSProperties = {
+    ...solidBtn,
+    background: "rgba(40, 120, 255, 0.16)",
+    border: "1px solid rgba(40, 120, 255, 0.25)"
   };
 
   return (
     <div style={wrap}>
-      {/* Under card (peek only while dragging) */}
+      {/* Under card */}
       {underItem ? (
         <div
           style={{
@@ -359,7 +450,7 @@ export function HusketSwipeDeck({ items, index, onSetIndex, onClose, onToggleFav
             pointerEvents: "none",
             opacity: underVisible ? 0.92 : 0,
             transform: underVisible ? "scale(0.975)" : "scale(1)",
-            transition: "opacity 140ms ease, transform 140ms ease",
+            transition: "opacity 140ms ease, transform 140ms ease"
           }}
         >
           <div style={cardBase(520 - 18)}>
@@ -369,9 +460,82 @@ export function HusketSwipeDeck({ items, index, onSetIndex, onClose, onToggleFav
               </div>
             </div>
             <div style={meta}>
-              <div style={{ ...chip, color: "rgba(0,0,0,0.72)" }}>
-                Husket øyeblikk: {formatDate(underItem.createdAt)}
+              <div style={{ ...chip, color: "rgba(0,0,0,0.72)" }}>Husket øyeblikk: {formatDate(underItem.createdAt)}</div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Category picker */}
+      {catOpen ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={catOverlay}
+          onClick={() => setCatOpen(false)}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <div style={catBox} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+              <div style={{ fontWeight: 900, fontSize: 16 }}>Kategori</div>
+              <button type="button" style={solidBtn} onClick={() => setCatOpen(false)}>
+                Lukk
+              </button>
+            </div>
+
+            <input
+              style={catInput}
+              value={catDraft}
+              onChange={(e) => setCatDraft(e.target.value)}
+              placeholder="Skriv ny kategori…"
+              maxLength={32}
+            />
+
+            {categoryOptions.length > 0 ? (
+              <div style={catPills}>
+                {categoryOptions.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    style={pill}
+                    onClick={() => {
+                      setCatDraft(c);
+                    }}
+                    title="Velg"
+                  >
+                    {c}
+                  </button>
+                ))}
               </div>
+            ) : (
+              <div style={{ color: "rgba(0,0,0,0.55)", fontSize: 13 }}>
+                Ingen kategorier enda. Skriv en ny for å opprette den.
+              </div>
+            )}
+
+            <div style={catActions}>
+              <button
+                type="button"
+                style={solidBtn}
+                onClick={() => {
+                  onSetCategory(undefined);
+                  setCatOpen(false);
+                }}
+              >
+                Fjern kategori
+              </button>
+
+              <button
+                type="button"
+                style={primaryBtn}
+                onClick={() => {
+                  const v = catDraft.trim();
+                  onSetCategory(v ? v : undefined);
+                  setCatOpen(false);
+                }}
+              >
+                Lagre
+              </button>
             </div>
           </div>
         </div>
@@ -383,7 +547,6 @@ export function HusketSwipeDeck({ items, index, onSetIndex, onClose, onToggleFav
           role="dialog"
           aria-modal="true"
           style={fullOverlay}
-          // Eat events while fullscreen is open
           onPointerDown={(e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -409,7 +572,6 @@ export function HusketSwipeDeck({ items, index, onSetIndex, onClose, onToggleFav
             <button
               type="button"
               style={fullClose}
-              // Close on pointerdown/touchstart so we beat delayed click sequences
               onPointerDown={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -444,22 +606,22 @@ export function HusketSwipeDeck({ items, index, onSetIndex, onClose, onToggleFav
       {/* Top (swipe) card */}
       <motion.div
         style={cardBase(520)}
-        drag={fullOpen ? false : "x"}
+        drag={fullOpen || catOpen ? false : "x"}
         dragConstraints={{ left: 0, right: 0 }}
         dragElastic={0.12}
         animate={controls}
         onDragStart={() => {
-          if (fullOpen) return;
+          if (fullOpen || catOpen) return;
           setShowUnder(true);
         }}
         onDrag={(_e: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-          if (fullOpen) return;
+          if (fullOpen || catOpen) return;
           const w = Math.max(window.innerWidth || 360, 360);
           const p = clamp(info.offset.x / w, -1, 1);
           controls.set({ rotate: p * 6 });
         }}
         onDragEnd={async (_e: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-          if (fullOpen) return;
+          if (fullOpen || catOpen) return;
 
           const dx = info.offset.x;
           const w = Math.max(window.innerWidth || 360, 360);
@@ -478,13 +640,12 @@ export function HusketSwipeDeck({ items, index, onSetIndex, onClose, onToggleFav
           await controls.start({
             x: 0,
             rotate: 0,
-            transition: { type: "spring", stiffness: 520, damping: 36 },
+            transition: { type: "spring", stiffness: 520, damping: 36 }
           });
 
           setShowUnder(false);
         }}
       >
-        {/* Arrow overlay (buttons, always possible without swipe) */}
         <div style={topBtns}>
           {canNewer ? (
             <button type="button" onClick={() => void goNewerAnimated()} style={arrowBtn("left")} aria-label="Nyere">
@@ -498,7 +659,6 @@ export function HusketSwipeDeck({ items, index, onSetIndex, onClose, onToggleFav
           ) : null}
         </div>
 
-        {/* Image (tap => fullscreen) */}
         <div style={imageFrame}>
           <div
             style={imageShell}
@@ -513,9 +673,25 @@ export function HusketSwipeDeck({ items, index, onSetIndex, onClose, onToggleFav
           </div>
         </div>
 
-        {/* Meta */}
         <div style={meta}>
           <div style={{ ...chip, color: "rgba(0,0,0,0.72)" }}>Husket øyeblikk: {formatDate(cur.createdAt)}</div>
+
+          {/* Category row */}
+          <div style={row}>
+            <span style={chip}>{cur.categoryId ? `🏷 ${cur.categoryId}` : "🏷 —"}</span>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setCatDraft(cur.categoryId ?? "");
+                setCatOpen(true);
+              }}
+              style={{ ...actionBtn, padding: 0, fontWeight: 700 }}
+              title="Endre kategori"
+            >
+              {cur.categoryId ? "Endre kategori" : "Sett kategori"}
+            </button>
+          </div>
 
           {cur.comment ? (
             <div style={{ color: "rgba(0,0,0,0.86)", whiteSpace: "pre-wrap" }}>{cur.comment}</div>
