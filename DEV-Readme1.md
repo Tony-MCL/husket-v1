@@ -520,3 +520,13 @@ Ny komponent OptionPickerModal gir single-select fra eksisterende valg + valgfri
 
 👤 Hvordan en fremtidig bruker forholder seg til dette
 Kategori oppleves likt uansett hvor du er i appen, og dette legger grunnlaget for rating-valg med samme mønster.
+
+Version update – Core v1 • v0.2.10
+✅ Funksjoner lagt til
+Kategorier er nå produktdefinerte. Bruker kan i Settings velge hvilke 0–4 kategorier som skal være tilgjengelige i Capture (per liv). Capture viser kun de valgte kategoriene som knapper (ikon + navn), og valg lagres på husk’et ved opprettelse.
+
+🧱 Hvordan det er bygd (kort)
+Kategorikatalog ligger i domain/catalog.ts. Brukerpreferanser for “kategorier på Capture” lagres offline per liv i capturePrefsRepo.ts. Ny overlay CategoryConfigScreen håndhever maks 4 valg og viser Pro-kategorier som låst (paywall-hook).
+
+👤 Hvordan en fremtidig bruker forholder seg til dette
+Brukeren velger sine snarveikategorier i Settings og får disse som raske valg i Capture, uten at endringer påvirker gamle minner.
