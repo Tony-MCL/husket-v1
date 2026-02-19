@@ -480,3 +480,13 @@ Viewer auto-advance etter softDelete() ved å oppdatere lokal index umiddelbart.
 
 👤 Hvordan en fremtidig bruker forholder seg til dette
 Sletting føles “sømløs” i viewer. Papirkurv er rask å bruke selv med mange elementer, og man kan gjenopprette mange i én operasjon uten lange lister av knapper.
+
+Version update – Core v1 • v0.2.6
+✅ Funksjoner lagt til
+Filtre er nå utvidet til å støtte Favoritt, Kategori, Rating og Dato, med konsekvent AND-logikk, og samme filtermotor brukes i både Album og Viewer.
+
+🧱 Hvordan det er bygd (kort)
+Ny domain-funksjon applyAlbumFilters(items, filters) er eneste “sannhet” for filtrering. Album og viewer-deck bygger liste fra listByLife(...) og kjører filtermotoren, slik at visningen alltid er identisk. Filter-UI i App bruker draft-state lokalt og skriver til uiStore.albumFilters først ved “Filtrer”.
+
+👤 Hvordan en fremtidig bruker forholder seg til dette
+Brukeren kan filtrere albumet på favoritter, kategori, rating og dato, og får identisk filtrert bunke når de åpner viewer.
