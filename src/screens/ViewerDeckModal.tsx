@@ -3,9 +3,11 @@
 // - Overlay for viewer (deck)
 // - Keep: NO extra top-right close "X"
 // - Close happens via card's own "Lukk" (and Escape on desktop)
-// - IMPORTANT FIX: Remove backdrop click-to-close and avoid overlay event patterns
-//   that can interfere with Framer Motion drag/swipe.
 // - Robust repo calls: do not assume exact export names for delete/favorite
+//
+// v0.2.5:
+// - After delete, auto-advance to next card (or close if last)
+//   so we never "sit on a deleted card" waiting for manual next.
 // ===============================
 import React, { useEffect, useMemo, useState } from "react";
 import type { Husket } from "../domain/types";
@@ -66,7 +68,7 @@ export function ViewerDeckModal({ items, husketId, onClose, onToast, onNavigateT
   const deleteToTrashFn = useMemo(() => {
     const m = husketRepo as any;
     return pickFn([
-      // Most likely / current name:
+      // Current name:
       m.softDelete,
 
       // Other possible legacy/alt names:
@@ -83,14 +85,7 @@ export function ViewerDeckModal({ items, husketId, onClose, onToast, onNavigateT
 
   const toggleFavoriteFn = useMemo(() => {
     const m = husketRepo as any;
-    return pickFn([
-      // Current name:
-      m.toggleFavorite,
-
-      // Other possible legacy/alt names:
-      m.setFavorite,
-      m.toggleHusketFavorite,
-    ]) as null | ((id: string) => unknown);
+    return pickFn([m.toggleFavorite, m.setFavorite, m.toggleHusketFavorite]) as null | ((id: string) => unknown);
   }, []);
 
   const onDeleteCurrent = async () => {
@@ -101,16 +96,30 @@ export function ViewerDeckModal({ items, husketId, onClose, onToast, onNavigateT
       return;
     }
 
-    await Promise.resolve(deleteToTrashFn(cur.id));
+    const curId = cur.id;
+
+    await Promise.resolve(deleteToTrashFn(curId));
     onToast("Flyttet til papirkurv.");
 
-    const nextLen = items.length - 1;
-    if (nextLen <= 0) {
+    // Auto-advance locally (do not rely on parent refresh timing)
+    const len = items.length;
+
+    if (len <= 1) {
       onClose();
       return;
     }
 
-    setIndex((prev) => clampIndex(prev, nextLen));
+    // Choose the next card in a deterministic way:
+    // Prefer "older" (index + 1) if available, else "newer" (index - 1).
+    const nextIndexCandidate = index < len - 1 ? index + 1 : index - 1;
+    const nextIndex = clampIndex(nextIndexCandidate, len);
+
+    setIndex(nextIndex);
+
+    const nextItem = items[nextIndex];
+    if (nextItem && nextItem.id !== curId) {
+      onNavigateToId(nextItem.id);
+    }
   };
 
   const onToggleFav = async () => {
