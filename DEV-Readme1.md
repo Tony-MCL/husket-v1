@@ -407,3 +407,23 @@ All navigasjon/lukking håndteres i HusketSwipeDeck (kortets egne knapper).
 Bla i minner ved å swipe venstre/høyre.
 
 Bruk Lukk på kortet for å gå tilbake til album. Fullscreen har egen ✕ og påvirker ikke kortvisningen.
+
+v0.2.1 – Changelog (til loggen din)
+
+✅ Funksjoner / endringer
+
+Papirkurv “Gjenopprett (original)” håndterer nå deaktivert life ved fallback til Privat (Core v1: custom-lives regnes som inaktive).
+
+Papirkurv-listen oppdateres korrekt mens skjermen er åpen (ikke statisk snapshot).
+
+🧱 Teknisk (kort)
+
+restoreFromTrash resolver target-life gjennom Core v1-regel (private/work aktive, ellers fallback private).
+
+TrashScreen bruker intern state + refresh() i stedet for useMemo(..., []).
+
+👤 Bruker
+
+Gjenoppretting fungerer alltid, også hvis original-liv ikke er tilgjengelig.
+
+Papirkurven føles mer “ekte” (oppdaterer riktig).
