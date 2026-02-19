@@ -1,13 +1,8 @@
 // ===============================
 // src/screens/ViewerDeckModal.tsx
-// - Overlay for viewer (deck)
-// - Keep: NO extra top-right close "X"
-// - Close happens via card's own "Lukk" (and Escape on desktop)
-// - Robust repo calls: do not assume exact export names for delete/favorite
 //
-// v0.2.5:
-// - After delete, auto-advance to next card (or close if last)
-//   so we never "sit on a deleted card" waiting for manual next.
+// v0.2.7:
+// - add category setter (robust repo call)
 // ===============================
 import React, { useEffect, useMemo, useState } from "react";
 import type { Husket } from "../domain/types";
@@ -46,7 +41,6 @@ export function ViewerDeckModal({ items, husketId, onClose, onToast, onNavigateT
     setIndex(initialIndex);
   }, [initialIndex]);
 
-  // Escape closes viewer (desktop convenience)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
@@ -58,7 +52,6 @@ export function ViewerDeckModal({ items, husketId, onClose, onToast, onNavigateT
 
   const cur = items[index];
 
-  // Sync global viewer id when user swipes to another card
   useEffect(() => {
     if (!cur) return;
     if (cur.id !== husketId) onNavigateToId(cur.id);
@@ -68,10 +61,7 @@ export function ViewerDeckModal({ items, husketId, onClose, onToast, onNavigateT
   const deleteToTrashFn = useMemo(() => {
     const m = husketRepo as any;
     return pickFn([
-      // Current name:
       m.softDelete,
-
-      // Other possible legacy/alt names:
       m.deleteHusket,
       m.trashHusket,
       m.moveToTrash,
@@ -79,13 +69,18 @@ export function ViewerDeckModal({ items, husketId, onClose, onToast, onNavigateT
       m.removeHusketToTrash,
       m.deleteToTrash,
       m.deleteToTrashHusket,
-      m.softDeleteToTrash,
+      m.softDeleteToTrash
     ]) as null | ((id: string) => unknown);
   }, []);
 
   const toggleFavoriteFn = useMemo(() => {
     const m = husketRepo as any;
     return pickFn([m.toggleFavorite, m.setFavorite, m.toggleHusketFavorite]) as null | ((id: string) => unknown);
+  }, []);
+
+  const setCategoryFn = useMemo(() => {
+    const m = husketRepo as any;
+    return pickFn([m.setCategory, m.updateCategory, m.setHusketCategory]) as null | ((id: string, categoryId?: string) => unknown);
   }, []);
 
   const onDeleteCurrent = async () => {
@@ -101,7 +96,6 @@ export function ViewerDeckModal({ items, husketId, onClose, onToast, onNavigateT
     await Promise.resolve(deleteToTrashFn(curId));
     onToast("Flyttet til papirkurv.");
 
-    // Auto-advance locally (do not rely on parent refresh timing)
     const len = items.length;
 
     if (len <= 1) {
@@ -109,8 +103,6 @@ export function ViewerDeckModal({ items, husketId, onClose, onToast, onNavigateT
       return;
     }
 
-    // Choose the next card in a deterministic way:
-    // Prefer "older" (index + 1) if available, else "newer" (index - 1).
     const nextIndexCandidate = index < len - 1 ? index + 1 : index - 1;
     const nextIndex = clampIndex(nextIndexCandidate, len);
 
@@ -134,6 +126,18 @@ export function ViewerDeckModal({ items, husketId, onClose, onToast, onNavigateT
     onToast(cur.isFavorite ? "Fjernet favoritt." : "Lagt til som favoritt.");
   };
 
+  const onSetCategory = async (categoryId?: string) => {
+    if (!cur) return;
+
+    if (!setCategoryFn) {
+      onToast("Fant ikke kategori-funksjon i husketRepo.");
+      return;
+    }
+
+    await Promise.resolve(setCategoryFn(cur.id, categoryId));
+    onToast(categoryId ? "Kategori oppdatert." : "Kategori fjernet.");
+  };
+
   return (
     <div
       className="modalOverlay"
@@ -141,7 +145,7 @@ export function ViewerDeckModal({ items, husketId, onClose, onToast, onNavigateT
         position: "fixed",
         inset: 0,
         zIndex: 1000000,
-        pointerEvents: "auto",
+        pointerEvents: "auto"
       }}
     >
       <HusketSwipeDeck
@@ -151,6 +155,7 @@ export function ViewerDeckModal({ items, husketId, onClose, onToast, onNavigateT
         onClose={onClose}
         onToggleFavorite={() => void onToggleFav()}
         onDeleteCurrent={() => void onDeleteCurrent()}
+        onSetCategory={(categoryId) => void onSetCategory(categoryId)}
       />
     </div>
   );
