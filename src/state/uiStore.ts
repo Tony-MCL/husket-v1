@@ -1,33 +1,30 @@
 // ===============================
 // src/state/uiStore.ts
 // Global UI-state (small, per contract)
+//
+// v0.2.10:
+// - Add categoryConfigOpen overlay flag (global UI only)
 // ===============================
 import { create } from "zustand";
 import type { AlbumFilters, LifeId, PanelId } from "../domain/types";
-import {
-  loadActiveLifeId,
-  loadPanelHintCount,
-  saveActiveLifeId,
-  savePanelHintCount
-} from "../data/local";
+import { loadActiveLifeId, loadPanelHintCount, saveActiveLifeId, savePanelHintCount } from "../data/local";
 
 type ViewerState = { isOpen: false } | { isOpen: true; husketId: string };
 
 type UiState = {
-  // global ui
   activeLifeId: LifeId | null;
   panel: PanelId;
   viewer: ViewerState;
   settingsOpen: boolean;
   albumFilters: AlbumFilters;
 
-  // global admin overlays (still "global", not tied to life)
   trashOpen: boolean;
 
-  // onboarding
+  // NEW: category config overlay (settings sub-screen)
+  categoryConfigOpen: boolean;
+
   panelHintCount: number;
 
-  // actions
   setActiveLifeId: (lifeId: LifeId) => void;
   goToPanel: (panel: PanelId) => void;
 
@@ -39,6 +36,9 @@ type UiState = {
 
   openTrash: () => void;
   closeTrash: () => void;
+
+  openCategoryConfig: () => void;
+  closeCategoryConfig: () => void;
 
   setAlbumFilters: (patch: Partial<AlbumFilters>) => void;
   clearAlbumFilters: () => void;
@@ -56,6 +56,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   albumFilters: { ...EMPTY_FILTERS },
 
   trashOpen: false,
+  categoryConfigOpen: false,
 
   panelHintCount: loadPanelHintCount(),
 
@@ -74,6 +75,9 @@ export const useUiStore = create<UiState>((set, get) => ({
 
   openTrash: () => set({ trashOpen: true }),
   closeTrash: () => set({ trashOpen: false }),
+
+  openCategoryConfig: () => set({ categoryConfigOpen: true }),
+  closeCategoryConfig: () => set({ categoryConfigOpen: false }),
 
   setAlbumFilters: (patch) => set({ albumFilters: { ...get().albumFilters, ...patch } }),
   clearAlbumFilters: () => set({ albumFilters: { ...EMPTY_FILTERS } }),
