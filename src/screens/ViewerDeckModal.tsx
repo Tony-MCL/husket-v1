@@ -1,9 +1,11 @@
 // ===============================
 // src/screens/ViewerDeckModal.tsx
 // - Overlay for viewer (deck)
-// - FIX: Remove the extra close "X" in the top-right
-// - Close is handled by the card's own "Lukk" button (and Escape on desktop)
-// - Robust repo calls: do not assume exact export names for delete/trash
+// - Keep: NO extra top-right close "X"
+// - Close happens via card's own "Lukk" (and Escape on desktop)
+// - IMPORTANT FIX: Remove backdrop click-to-close and avoid overlay event patterns
+//   that can interfere with Framer Motion drag/swipe.
+// - Robust repo calls: do not assume exact export names for delete/favorite
 // ===============================
 import React, { useEffect, useMemo, useState } from "react";
 import type { Husket } from "../domain/types";
@@ -42,6 +44,7 @@ export function ViewerDeckModal({ items, husketId, onClose, onToast, onNavigateT
     setIndex(initialIndex);
   }, [initialIndex]);
 
+  // Escape closes viewer (desktop convenience)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
@@ -53,6 +56,7 @@ export function ViewerDeckModal({ items, husketId, onClose, onToast, onNavigateT
 
   const cur = items[index];
 
+  // Sync global viewer id when user swipes to another card
   useEffect(() => {
     if (!cur) return;
     if (cur.id !== husketId) onNavigateToId(cur.id);
@@ -91,6 +95,7 @@ export function ViewerDeckModal({ items, husketId, onClose, onToast, onNavigateT
       onClose();
       return;
     }
+
     setIndex((prev) => clampIndex(prev, nextLen));
   };
 
@@ -115,27 +120,18 @@ export function ViewerDeckModal({ items, husketId, onClose, onToast, onNavigateT
         zIndex: 1000000,
         pointerEvents: "auto",
       }}
-      onClick={() => onClose()}
-      onPointerDown={(e) => e.stopPropagation()}
-      onPointerUp={(e) => e.stopPropagation()}
+      // NOTE:
+      // No backdrop click-to-close. This avoids interfering with drag/swipe.
+      // The card has its own "Lukk" button.
     >
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          display: "grid",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <HusketSwipeDeck
-          items={items}
-          index={index}
-          onSetIndex={(next) => setIndex(next)}
-          onClose={onClose}
-          onToggleFavorite={() => void onToggleFav()}
-          onDeleteCurrent={() => void onDeleteCurrent()}
-        />
-      </div>
+      <HusketSwipeDeck
+        items={items}
+        index={index}
+        onSetIndex={(next) => setIndex(next)}
+        onClose={onClose}
+        onToggleFavorite={() => void onToggleFav()}
+        onDeleteCurrent={() => void onDeleteCurrent()}
+      />
     </div>
   );
 }
