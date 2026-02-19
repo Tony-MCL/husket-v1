@@ -2,13 +2,14 @@
 // src/components/HusketSwipeDeck.tsx
 // Viewer bunke + swipe (Framer Motion)
 //
-// v0.2.7:
-// - show category + edit category (select existing / type new / clear)
-// - category editing is local UI; write happens via prop onSetCategory
+// v0.2.9:
+// - Category editor uses OptionPickerModal (same as Capture)
+// - This prepares us for Ratings with minimal extra work
 // ===============================
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion, useAnimation, type PanInfo } from "framer-motion";
 import type { Husket } from "../domain/types";
+import { OptionPickerModal } from "./OptionPickerModal";
 
 type Props = {
   items: Husket[];
@@ -19,7 +20,6 @@ type Props = {
   onToggleFavorite: () => void;
   onDeleteCurrent: () => void;
 
-  // v0.2.7
   onSetCategory: (categoryId?: string) => void;
 };
 
@@ -60,9 +60,8 @@ export function HusketSwipeDeck({
   const [showUnder, setShowUnder] = useState(false);
   const [fullOpen, setFullOpen] = useState(false);
 
-  // Category editor
+  // Category modal
   const [catOpen, setCatOpen] = useState(false);
-  const [catDraft, setCatDraft] = useState("");
 
   const categoryOptions = useMemo(() => {
     return uniqSorted(items.map((x) => x.categoryId));
@@ -84,7 +83,6 @@ export function HusketSwipeDeck({
     setFullOpen(false);
     setShowUnder(false);
     setCatOpen(false);
-    setCatDraft("");
     controls.set({ x: 0, rotate: 0 });
   }, [cur?.id, controls]);
 
@@ -153,14 +151,17 @@ export function HusketSwipeDeck({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
+
       if (catOpen) {
         setCatOpen(false);
         return;
       }
+
       if (fullOpen) {
         closeFullscreenHard();
         return;
       }
+
       onClose();
     };
     window.addEventListener("keydown", onKey);
@@ -366,77 +367,6 @@ export function HusketSwipeDeck({
     display: "block"
   };
 
-  // Category modal styles
-  const catOverlay: React.CSSProperties = {
-    position: "fixed",
-    inset: 0,
-    zIndex: 2147483000,
-    background: "rgba(0,0,0,0.42)",
-    display: "grid",
-    placeItems: "center",
-    padding: 14
-  };
-
-  const catBox: React.CSSProperties = {
-    width: "min(520px, 100%)",
-    borderRadius: 18,
-    border: "1px solid rgba(0,0,0,0.10)",
-    background: "rgba(255,255,255,0.96)",
-    boxShadow: "0 18px 40px rgba(0,0,0,0.18)",
-    padding: 14,
-    display: "grid",
-    gap: 10
-  };
-
-  const catInput: React.CSSProperties = {
-    width: "100%",
-    borderRadius: 14,
-    border: "1px solid rgba(0,0,0,0.12)",
-    padding: "10px 12px",
-    fontSize: 14,
-    outline: "none"
-  };
-
-  const catPills: React.CSSProperties = {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: 8
-  };
-
-  const pill: React.CSSProperties = {
-    border: "1px solid rgba(0,0,0,0.10)",
-    background: "rgba(255,255,255,0.75)",
-    backdropFilter: "blur(8px)",
-    borderRadius: 999,
-    padding: "8px 10px",
-    cursor: "pointer",
-    fontWeight: 800,
-    fontSize: 13
-  };
-
-  const catActions: React.CSSProperties = {
-    display: "flex",
-    gap: 10,
-    justifyContent: "flex-end",
-    flexWrap: "wrap",
-    marginTop: 4
-  };
-
-  const solidBtn: React.CSSProperties = {
-    border: "1px solid rgba(0,0,0,0.12)",
-    background: "rgba(255,255,255,0.85)",
-    borderRadius: 14,
-    padding: "10px 12px",
-    cursor: "pointer",
-    fontWeight: 800
-  };
-
-  const primaryBtn: React.CSSProperties = {
-    ...solidBtn,
-    background: "rgba(40, 120, 255, 0.16)",
-    border: "1px solid rgba(40, 120, 255, 0.25)"
-  };
-
   return (
     <div style={wrap}>
       {/* Under card */}
@@ -466,82 +396,24 @@ export function HusketSwipeDeck({
         </div>
       ) : null}
 
-      {/* Category picker */}
+      {/* Category modal */}
       {catOpen ? (
-        <div
-          role="dialog"
-          aria-modal="true"
-          style={catOverlay}
-          onClick={() => setCatOpen(false)}
-          onPointerDown={(e) => e.stopPropagation()}
-        >
-          <div style={catBox} onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
-              <div style={{ fontWeight: 900, fontSize: 16 }}>Kategori</div>
-              <button type="button" style={solidBtn} onClick={() => setCatOpen(false)}>
-                Lukk
-              </button>
-            </div>
-
-            <input
-              style={catInput}
-              value={catDraft}
-              onChange={(e) => setCatDraft(e.target.value)}
-              placeholder="Skriv ny kategori…"
-              maxLength={32}
-            />
-
-            {categoryOptions.length > 0 ? (
-              <div style={catPills}>
-                {categoryOptions.map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    style={pill}
-                    onClick={() => {
-                      setCatDraft(c);
-                    }}
-                    title="Velg"
-                  >
-                    {c}
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div style={{ color: "rgba(0,0,0,0.55)", fontSize: 13 }}>
-                Ingen kategorier enda. Skriv en ny for å opprette den.
-              </div>
-            )}
-
-            <div style={catActions}>
-              <button
-                type="button"
-                style={solidBtn}
-                onClick={() => {
-                  onSetCategory(undefined);
-                  setCatOpen(false);
-                }}
-              >
-                Fjern kategori
-              </button>
-
-              <button
-                type="button"
-                style={primaryBtn}
-                onClick={() => {
-                  const v = catDraft.trim();
-                  onSetCategory(v ? v : undefined);
-                  setCatOpen(false);
-                }}
-              >
-                Lagre
-              </button>
-            </div>
-          </div>
-        </div>
+        <OptionPickerModal
+          title="Kategori"
+          options={categoryOptions}
+          value={cur.categoryId}
+          allowCustom={true}
+          inputPlaceholder="Skriv ny kategori…"
+          inputMaxLength={32}
+          saveLabel="Lagre"
+          clearLabel="Fjern"
+          closeLabel="Lukk"
+          onSave={(v) => onSetCategory(v)}
+          onClose={() => setCatOpen(false)}
+        />
       ) : null}
 
-      {/* Fullscreen photo */}
+      {/* Fullscreen */}
       {fullOpen ? (
         <div
           role="dialog"
@@ -683,7 +555,6 @@ export function HusketSwipeDeck({
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                setCatDraft(cur.categoryId ?? "");
                 setCatOpen(true);
               }}
               style={{ ...actionBtn, padding: 0, fontWeight: 700 }}
