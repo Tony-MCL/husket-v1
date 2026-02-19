@@ -490,3 +490,13 @@ Ny domain-funksjon applyAlbumFilters(items, filters) er eneste “sannhet” for
 
 👤 Hvordan en fremtidig bruker forholder seg til dette
 Brukeren kan filtrere albumet på favoritter, kategori, rating og dato, og får identisk filtrert bunke når de åpner viewer.
+
+Version update – Core v1 • v0.2.7
+✅ Funksjoner lagt til
+Kategorier er nå støttet i Core v1 som en redigerbar egenskap: kategori kan settes, endres eller fjernes direkte i Viewer, og vises i Album.
+
+🧱 Hvordan det er bygd (kort)
+Repo har fått setCategory(id, categoryId?). Viewer-kortstokken tilbyr en enkel kategori-velger med liste over eksisterende kategorier (fra aktive data) + mulighet til å skrive inn ny. Album viser enkel kategori-indikator på thumbnails.
+
+👤 Hvordan en fremtidig bruker forholder seg til dette
+Brukeren kan rydde og organisere minner ved å sette kategori i ettertid, uten å endre bilde eller rating, og kan senere filtrere på kategorier.
