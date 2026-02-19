@@ -427,3 +427,16 @@ TrashScreen bruker intern state + refresh() i stedet for useMemo(..., []).
 Gjenoppretting fungerer alltid, også hvis original-liv ikke er tilgjengelig.
 
 Papirkurven føles mer “ekte” (oppdaterer riktig).
+
+Version update – Core v1 • v0.2.1
+✅ Endring
+
+Slett fra Viewer (kortstokk) fungerer igjen: “Slett” flytter nå husk’et til papirkurv som forventet.
+
+🧱 Hvordan det er bygd (kort)
+
+ViewerDeckModal.tsx sin “robuste repo call”-oppslagstabell er oppdatert til å inkludere husketRepo.softDelete som kandidat for slett-funksjon (tidligere manglet den, og ga toast: “Fant ikke slett-funksjonen i husketRepo.”).
+
+👤 Hvordan en fremtidig bruker forholder seg til dette
+
+Brukeren kan trykke 🗑 Slett i viewer-kortet, og husk’et flyttes til papirkurv uten feilmelding.
