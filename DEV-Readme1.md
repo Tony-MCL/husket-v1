@@ -461,3 +461,22 @@ Papirkurv abonnerer på repo-endringer (subscribeRepo) og oppdaterer lista umidd
 
 👤 Hvordan en fremtidig bruker forholder seg til dette
 Brukeren kan velge flere elementer i papirkurven og gjenopprette dem i én operasjon, uten å bli kastet ut av papirkurven mellom hver handling.
+
+Version update – Core v1 • v0.2.5
+✅ Endringer
+
+Etter sletting i Viewer flyttes man automatisk videre til neste kort (eller viewer lukkes hvis det var siste), slik at man aldri blir stående på et slettet kort.
+
+Papirkurv er nå en kompakt thumbnail-grid med avkrysningsbokser og ett sett handlinger (ikke knapper per element).
+
+Gjenoppretting skjer via én “Gjenopprett…”-flyt med popup for valg av mål-liv (enkeltvalg).
+
+Dobbel “Papirkurven er tom.” er fjernet.
+
+Papirkurv lukkes automatisk når den blir tom.
+
+🧱 Hvordan det er bygd (kort)
+Viewer auto-advance etter softDelete() ved å oppdatere lokal index umiddelbart. Papirkurv rendrer thumbnails i grid, bruker multi-select og en restore-picker med single-choice target.
+
+👤 Hvordan en fremtidig bruker forholder seg til dette
+Sletting føles “sømløs” i viewer. Papirkurv er rask å bruke selv med mange elementer, og man kan gjenopprette mange i én operasjon uten lange lister av knapper.
