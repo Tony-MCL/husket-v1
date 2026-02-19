@@ -1,11 +1,8 @@
 // ===============================
 // src/app/App.tsx
-// - Viewer uses swipe deck
-// - Fix: correct ViewerState (uses husketId, not id)
-// - FIX: Global "layer lock" done correctly:
-//   Do NOT set pointer-events:none on body (it makes overlays click-through).
-//   Instead, disable pointer events ONLY on the base chrome/content when any overlay is open.
-//   Overlays get explicit pointerEvents:auto + high z-index.
+// v0.2.6:
+// - Shared filter motor for album + viewer deck
+// - Real filter UI for favorite/category/rating/date (AND logic)
 // ===============================
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUiStore } from "../state/uiStore";
@@ -20,9 +17,34 @@ import { ToastHost } from "../components/ToastHost";
 import { TrashScreen } from "../screens/TrashScreen";
 import { ViewerDeckModal } from "../screens/ViewerDeckModal";
 import { listByLife } from "../data/husketRepo";
-import type { Husket } from "../domain/types";
+import type { Husket, DatePreset } from "../domain/types";
+import { applyAlbumFilters } from "../domain/applyAlbumFilters";
 
 type BootPhase = "splash" | "ready";
+
+function uniqSorted(values: Array<string | undefined>): string[] {
+  const s = new Set<string>();
+  for (const v of values) if (typeof v === "string" && v.trim()) s.add(v);
+  return Array.from(s).sort((a, b) => a.localeCompare(b));
+}
+
+function toDateInputValue(ts?: number): string {
+  if (!ts) return "";
+  const d = new Date(ts);
+  const y = String(d.getFullYear()).padStart(4, "0");
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function fromDateInputValue(value: string): number | undefined {
+  if (!value) return undefined;
+  // Interpret as local date, midnight
+  const [y, m, d] = value.split("-").map((x) => parseInt(x, 10));
+  if (!y || !m || !d) return undefined;
+  const dt = new Date(y, m - 1, d, 0, 0, 0, 0);
+  return dt.getTime();
+}
 
 export function App() {
   const [boot, setBoot] = useState<BootPhase>("splash");
@@ -46,11 +68,17 @@ export function App() {
   const trashOpen = useUiStore((s) => s.trashOpen);
   const closeTrash = useUiStore((s) => s.closeTrash);
 
-  // Settings open flag: if store doesn’t have it, treat as false.
-  const settingsOpen = useUiStore((s: any) => (typeof s.settingsOpen === "boolean" ? s.settingsOpen : false));
+  const settingsOpen = useUiStore((s) => s.settingsOpen);
 
   const [filtersOpen, setFiltersOpen] = useState(false);
+
+  // Draft filter state (local only; store updated on "Filtrer")
   const [draftFavoriteOnly, setDraftFavoriteOnly] = useState<boolean>(!!albumFilters.favoriteOnly);
+  const [draftCategoryId, setDraftCategoryId] = useState<string>(albumFilters.categoryId ?? "");
+  const [draftRatingId, setDraftRatingId] = useState<string>(albumFilters.ratingId ?? "");
+  const [draftDatePreset, setDraftDatePreset] = useState<DatePreset>(albumFilters.datePreset ?? "week");
+  const [draftFrom, setDraftFrom] = useState<string>(toDateInputValue(albumFilters.customFrom));
+  const [draftTo, setDraftTo] = useState<string>(toDateInputValue(albumFilters.customTo));
 
   const toastNow = useCallback((msg: string) => {
     setToast(msg);
@@ -60,16 +88,41 @@ export function App() {
   useEffect(() => {
     if (!filtersOpen) return;
     setDraftFavoriteOnly(!!albumFilters.favoriteOnly);
-  }, [filtersOpen, albumFilters.favoriteOnly]);
+    setDraftCategoryId(albumFilters.categoryId ?? "");
+    setDraftRatingId(albumFilters.ratingId ?? "");
+    setDraftDatePreset(albumFilters.datePreset ?? "week");
+    setDraftFrom(toDateInputValue(albumFilters.customFrom));
+    setDraftTo(toDateInputValue(albumFilters.customTo));
+  }, [filtersOpen, albumFilters]);
 
   const viewerId = viewer.isOpen ? viewer.husketId : null;
 
-  const deckItems: Husket[] = useMemo(() => {
+  // Base list (life only). Filters applied below via shared motor.
+  const lifeItems: Husket[] = useMemo(() => {
     if (!activeLifeId) return [];
-    const all = listByLife(activeLifeId, false);
-    if (albumFilters.favoriteOnly) return all.filter((x) => x.isFavorite);
-    return all;
-  }, [activeLifeId, albumFilters.favoriteOnly, panel, viewer.isOpen, viewerId]);
+    return listByLife(activeLifeId, false);
+  }, [activeLifeId, panel, viewer.isOpen, viewerId, albumFilters.favoriteOnly, albumFilters.categoryId, albumFilters.ratingId, albumFilters.datePreset, albumFilters.customFrom, albumFilters.customTo]);
+
+  const deckItems: Husket[] = useMemo(() => {
+    return applyAlbumFilters(lifeItems, albumFilters);
+  }, [
+    lifeItems,
+    albumFilters.favoriteOnly,
+    albumFilters.categoryId,
+    albumFilters.ratingId,
+    albumFilters.datePreset,
+    albumFilters.customFrom,
+    albumFilters.customTo
+  ]);
+
+  // Options for filter dropdowns derived from existing data in the active life
+  const categoryOptions = useMemo(() => {
+    return uniqSorted(lifeItems.map((x) => x.categoryId));
+  }, [lifeItems]);
+
+  const ratingOptions = useMemo(() => {
+    return uniqSorted(lifeItems.map((x) => x.ratingId));
+  }, [lifeItems]);
 
   // Contract 9.1: If album is empty -> go directly to Capture
   useEffect(() => {
@@ -82,17 +135,9 @@ export function App() {
     }
   }, [activeLifeId, panel, goToPanel]);
 
-  // ===============================
-  // Correct layer lock:
-  // When ANY overlay is open, disable pointer-events on base app chrome/content only.
-  // Overlays remain interactive.
-  // ===============================
   const overlayActive = !!(viewer.isOpen || trashOpen || filtersOpen || settingsOpen);
 
-  // ===============================
-  // two-panel swipe (Album <-> Capture)
-  // disabled whenever overlayActive
-  // ===============================
+  // two-panel swipe (Album <-> Capture) disabled whenever overlayActive
   const drag = useRef<{ startX: number; startY: number; active: boolean } | null>(null);
 
   const onPointerDown = (e: React.PointerEvent) => {
@@ -135,7 +180,7 @@ export function App() {
     }
   };
 
-  const versionLabel = useMemo(() => "Core v1 • offline • 0.1.15", []);
+  const versionLabel = useMemo(() => "Core v1 • offline • 0.2.6", []);
 
   if (boot === "splash") {
     return <SplashScreen onDone={() => setBoot("ready")} />;
@@ -151,7 +196,26 @@ export function App() {
   }
 
   const applyFilters = () => {
-    setAlbumFilters({ favoriteOnly: draftFavoriteOnly ? true : undefined });
+    const preset = draftDatePreset;
+
+    const patch: any = {
+      favoriteOnly: draftFavoriteOnly ? true : undefined,
+      categoryId: draftCategoryId ? draftCategoryId : undefined,
+      ratingId: draftRatingId ? draftRatingId : undefined,
+      datePreset: preset
+    };
+
+    if (preset === "custom") {
+      const from = fromDateInputValue(draftFrom);
+      const to = fromDateInputValue(draftTo);
+      patch.customFrom = typeof from === "number" ? from : undefined;
+      patch.customTo = typeof to === "number" ? to : undefined;
+    } else {
+      patch.customFrom = undefined;
+      patch.customTo = undefined;
+    }
+
+    setAlbumFilters(patch);
     setFiltersOpen(false);
     toastNow("Filtre oppdatert.");
   };
@@ -159,15 +223,18 @@ export function App() {
   const clearFilters = () => {
     clearAlbumFilters();
     setDraftFavoriteOnly(false);
+    setDraftCategoryId("");
+    setDraftRatingId("");
+    setDraftDatePreset("week");
+    setDraftFrom("");
+    setDraftTo("");
     toastNow("Filtervalg tømt.");
   };
 
-  // Base app wrapper becomes inert when overlays are active
   const baseShellStyle: React.CSSProperties = {
     pointerEvents: overlayActive ? "none" : "auto",
   };
 
-  // Common overlay host styles (always above TopBar)
   const overlayHostStyle: React.CSSProperties = {
     position: "fixed",
     inset: 0,
@@ -177,10 +244,6 @@ export function App() {
 
   return (
     <div onPointerDown={onPointerDown} onPointerUp={onPointerUp}>
-      {/* ===============================
-          BASE APP (TopBar + content + BottomNav)
-          This is what we lock when an overlay is open.
-          =============================== */}
       <div style={baseShellStyle}>
         <TopBar onOpenFilters={() => setFiltersOpen(true)} />
 
@@ -193,11 +256,8 @@ export function App() {
         <BottomNav />
       </div>
 
-      {/* Toast + SettingsDrawer should ALWAYS remain clickable when they are actually open.
-          ToastHost is fine outside (it doesn't usually catch taps). */}
       <ToastHost message={toast} />
 
-      {/* SettingsDrawer: force it ABOVE TopBar when open (prevents "drawer behind hamburger"). */}
       {settingsOpen ? (
         <div style={{ ...overlayHostStyle, zIndex: 3000000 }}>
           <SettingsDrawer />
@@ -206,15 +266,8 @@ export function App() {
         <SettingsDrawer />
       )}
 
-      {/* ===============================
-          OVERLAYS (must be interactive and on top)
-          =============================== */}
       {filtersOpen ? (
-        <div
-          className="modalOverlay"
-          style={{ ...overlayHostStyle, zIndex: 3500000 }}
-          onClick={() => setFiltersOpen(false)}
-        >
+        <div className="modalOverlay" style={{ ...overlayHostStyle, zIndex: 3500000 }} onClick={() => setFiltersOpen(false)}>
           <div className="modalBox" onClick={(e) => e.stopPropagation()}>
             <h3 className="modalTitle">Filter</h3>
 
@@ -226,6 +279,76 @@ export function App() {
               >
                 Vis kun favoritter
               </button>
+            </div>
+
+            <div className="label" style={{ marginTop: 14 }}>Kategori</div>
+            <select
+              value={draftCategoryId}
+              onChange={(e) => setDraftCategoryId(e.target.value)}
+              className="flatBtn"
+              style={{ width: "100%", textAlign: "left" as any }}
+            >
+              <option value="">Alle kategorier</option>
+              {categoryOptions.map((id) => (
+                <option key={id} value={id}>
+                  {id}
+                </option>
+              ))}
+            </select>
+
+            <div className="label" style={{ marginTop: 14 }}>Rating</div>
+            <select
+              value={draftRatingId}
+              onChange={(e) => setDraftRatingId(e.target.value)}
+              className="flatBtn"
+              style={{ width: "100%", textAlign: "left" as any }}
+            >
+              <option value="">Alle ratings</option>
+              {ratingOptions.map((id) => (
+                <option key={id} value={id}>
+                  {id}
+                </option>
+              ))}
+            </select>
+
+            <div className="label" style={{ marginTop: 14 }}>Dato</div>
+            <div style={{ display: "grid", gap: 10 }}>
+              <select
+                value={draftDatePreset}
+                onChange={(e) => setDraftDatePreset(e.target.value as DatePreset)}
+                className="flatBtn"
+                style={{ width: "100%", textAlign: "left" as any }}
+              >
+                <option value="week">Siste 7 dager</option>
+                <option value="month">Siste 30 dager</option>
+                <option value="year">Siste 365 dager</option>
+                <option value="custom">Egendefinert</option>
+              </select>
+
+              {draftDatePreset === "custom" ? (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <div style={{ display: "grid", gap: 6 }}>
+                    <div className="smallHelp">Fra</div>
+                    <input
+                      type="date"
+                      value={draftFrom}
+                      onChange={(e) => setDraftFrom(e.target.value)}
+                      className="flatBtn"
+                      style={{ width: "100%" }}
+                    />
+                  </div>
+                  <div style={{ display: "grid", gap: 6 }}>
+                    <div className="smallHelp">Til</div>
+                    <input
+                      type="date"
+                      value={draftTo}
+                      onChange={(e) => setDraftTo(e.target.value)}
+                      className="flatBtn"
+                      style={{ width: "100%" }}
+                    />
+                  </div>
+                </div>
+              ) : null}
             </div>
 
             <div className="modalActions">
