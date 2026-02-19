@@ -1,8 +1,6 @@
 // ===============================
 // src/screens/ViewerDeckModal.tsx
-//
-// v0.2.7:
-// - add category setter (robust repo call)
+// v0.2.9: ensure onSetCategory is passed to deck
 // ===============================
 import React, { useEffect, useMemo, useState } from "react";
 import type { Husket } from "../domain/types";
@@ -55,7 +53,6 @@ export function ViewerDeckModal({ items, husketId, onClose, onToast, onNavigateT
   useEffect(() => {
     if (!cur) return;
     if (cur.id !== husketId) onNavigateToId(cur.id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cur?.id, husketId, onNavigateToId]);
 
   const deleteToTrashFn = useMemo(() => {
@@ -67,9 +64,7 @@ export function ViewerDeckModal({ items, husketId, onClose, onToast, onNavigateT
       m.moveToTrash,
       m.softDeleteHusket,
       m.removeHusketToTrash,
-      m.deleteToTrash,
-      m.deleteToTrashHusket,
-      m.softDeleteToTrash
+      m.deleteToTrash
     ]) as null | ((id: string) => unknown);
   }, []);
 
@@ -97,7 +92,6 @@ export function ViewerDeckModal({ items, husketId, onClose, onToast, onNavigateT
     onToast("Flyttet til papirkurv.");
 
     const len = items.length;
-
     if (len <= 1) {
       onClose();
       return;
