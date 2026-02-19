@@ -388,3 +388,22 @@ Swipe og alle actions håndteres inne i kortet.
 Du blar i kortstokken ved å swipe som før.
 
 Du går tilbake til album med “Lukk” på kortet (ikke ved å trykke utenfor).
+
+Version update – Core v1 • v0.1.18
+✅ Endring
+
+Viewer (kortstokken) swiper igjen som forventet.
+
+Viewer-overlay lukker ikke ved trykk på bakgrunn, kun via Lukk på kortet (og Escape på desktop).
+
+🧱 Hvordan det er bygd (kort)
+
+ViewerDeckModal er nå en “ren host” uten backdrop-klikk eller ekstra close-knapp.
+
+All navigasjon/lukking håndteres i HusketSwipeDeck (kortets egne knapper).
+
+👤 Brukeropplevelse
+
+Bla i minner ved å swipe venstre/høyre.
+
+Bruk Lukk på kortet for å gå tilbake til album. Fullscreen har egen ✕ og påvirker ikke kortvisningen.
