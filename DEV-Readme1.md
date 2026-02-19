@@ -510,3 +510,13 @@ Capture henter eksisterende kategorier fra lokale data (listByLife) og tilbyr en
 
 👤 Hvordan en fremtidig bruker forholder seg til dette
 Brukeren kan kategorisere minner allerede når de opprettes, og kan fortsatt endre/fjerne kategori i ettertid i Viewer.
+
+Version update – Core v1 • v0.2.9
+✅ Endring
+Kategori-UI er refaktorert til en gjenbrukbar “velg/lag ny”-modal som brukes både i Capture og Viewer.
+
+🧱 Hvordan det er bygd (kort)
+Ny komponent OptionPickerModal gir single-select fra eksisterende valg + valgfri fritekst for nye valg. Capture og Viewer åpner samme modal, og lagrer resultatet i categoryId.
+
+👤 Hvordan en fremtidig bruker forholder seg til dette
+Kategori oppleves likt uansett hvor du er i appen, og dette legger grunnlaget for rating-valg med samme mønster.
