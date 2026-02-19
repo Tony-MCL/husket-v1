@@ -3,16 +3,18 @@
 // Core v1: minimal "create husk'et" to validate flow (offline).
 // Camera integration comes later.
 //
-// v0.2.9:
-// - Category selection moved to reusable OptionPickerModal
-// - Capture UI now matches how Ratings will work later
+// v0.2.10:
+// - Categories are product-defined
+// - Capture shows up to 4 category buttons chosen in Settings (per life)
+// - User cannot create categories in Capture
 // ===============================
 import React, { useMemo, useState } from "react";
 import { useUiStore } from "../state/uiStore";
 import { makeId } from "../domain/id";
 import type { Husket } from "../domain/types";
-import { listByLife, upsert } from "../data/husketRepo";
-import { OptionPickerModal } from "../components/OptionPickerModal";
+import { upsert } from "../data/husketRepo";
+import { getCaptureCategoryIds } from "../data/capturePrefsRepo";
+import { getCategoryById } from "../domain/catalog";
 
 function makeDemoImageDataUrl(label: string) {
   const svg = `
@@ -33,12 +35,6 @@ function makeDemoImageDataUrl(label: string) {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
-function uniqSorted(values: Array<string | undefined>): string[] {
-  const s = new Set<string>();
-  for (const v of values) if (typeof v === "string" && v.trim()) s.add(v.trim());
-  return Array.from(s).sort((a, b) => a.localeCompare(b));
-}
-
 export function CaptureScreen(props: { onToast: (msg: string) => void }) {
   const { onToast } = props;
 
@@ -47,12 +43,10 @@ export function CaptureScreen(props: { onToast: (msg: string) => void }) {
 
   const [comment, setComment] = useState("");
   const [categoryId, setCategoryId] = useState<string | undefined>(undefined);
-  const [catOpen, setCatOpen] = useState(false);
 
-  const categoryOptions = useMemo(() => {
+  const captureCategoryIds = useMemo(() => {
     if (!activeLifeId) return [];
-    const items = listByLife(activeLifeId, false);
-    return uniqSorted(items.map((x) => x.categoryId));
+    return getCaptureCategoryIds(activeLifeId);
   }, [activeLifeId]);
 
   const canSave = useMemo(() => {
@@ -77,7 +71,7 @@ export function CaptureScreen(props: { onToast: (msg: string) => void }) {
       lifeId: activeLifeId,
       createdAt: now,
       comment: trimmed ? trimmed : undefined,
-      categoryId: categoryId?.trim() ? categoryId.trim() : undefined,
+      categoryId: categoryId ? categoryId : undefined,
 
       imageMeta: {
         mime: "image/svg+xml",
@@ -117,21 +111,41 @@ export function CaptureScreen(props: { onToast: (msg: string) => void }) {
           />
         </div>
 
-        {/* Category (optional) */}
+        {/* Categories (0..4) */}
         <div style={{ marginTop: 12 }}>
           <div className="label">Kategori (valgfri)</div>
 
-          <button
-            type="button"
-            className="flatBtn"
-            onClick={() => setCatOpen(true)}
-            style={{ width: "100%", textAlign: "left" }}
-          >
-            {categoryId ? `🏷 ${categoryId}` : "🏷 Ingen kategori"}
-          </button>
+          {captureCategoryIds.length === 0 ? (
+            <div className="smallHelp" style={{ marginTop: 6 }}>
+              Ingen kategorier valgt for Capture i dette livet. (Velges i Settings.)
+            </div>
+          ) : (
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 8 }}>
+              {captureCategoryIds.map((id) => {
+                const def = getCategoryById(id);
+                if (!def) return null;
 
-          <div className="smallHelp" style={{ marginTop: 6 }}>
-            {categoryId ? "Trykk for å endre eller fjerne." : "Trykk for å velge eller opprette."}
+                const active = categoryId === id;
+
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    className={`pill ${active ? "active" : ""}`}
+                    onClick={() => setCategoryId((prev) => (prev === id ? undefined : id))}
+                    title="Velg kategori"
+                    style={{ display: "flex", alignItems: "center", gap: 8 }}
+                  >
+                    <span>{def.icon}</span>
+                    <span>{def.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="smallHelp" style={{ marginTop: 8 }}>
+            {categoryId ? `Valgt: ${getCategoryById(categoryId)?.name ?? "—"}` : "Ingen kategori valgt."}
           </div>
         </div>
 
@@ -167,22 +181,6 @@ export function CaptureScreen(props: { onToast: (msg: string) => void }) {
           </button>
         </div>
       </div>
-
-      {catOpen ? (
-        <OptionPickerModal
-          title="Kategori"
-          options={categoryOptions}
-          value={categoryId}
-          allowCustom={true}
-          inputPlaceholder="Skriv ny kategori…"
-          inputMaxLength={32}
-          saveLabel="Lagre"
-          clearLabel="Fjern"
-          closeLabel="Lukk"
-          onSave={(v) => setCategoryId(v)}
-          onClose={() => setCatOpen(false)}
-        />
-      ) : null}
     </div>
   );
 }
