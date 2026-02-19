@@ -450,3 +450,14 @@ husketRepo har fått en lett “subscribe/emit”-mekanisme som trigges ved alle
 
 👤 Hvordan en fremtidig bruker forholder seg til dette
 Når brukeren sletter et husk’et i kortstokken, forsvinner det også fra albumet med en gang – uten refresh eller navigering.
+
+Version update – Core v1 • v0.2.4
+✅ Endring
+
+Papirkurv lar deg nå gjenopprette flere husk’eter samtidig, og papirkurven forblir åpen etter gjenoppretting (lukkes kun via “Lukk”).
+
+🧱 Hvordan det er bygd (kort)
+Papirkurv abonnerer på repo-endringer (subscribeRepo) og oppdaterer lista umiddelbart. UI har fått multi-select via checkbox per item og “bulk restore”-knapper (original/Privat/Jobb). Restore håndterer fortsatt deaktivert life ved fallback til Privat (Core v1).
+
+👤 Hvordan en fremtidig bruker forholder seg til dette
+Brukeren kan velge flere elementer i papirkurven og gjenopprette dem i én operasjon, uten å bli kastet ut av papirkurven mellom hver handling.
