@@ -7,6 +7,14 @@ import type { Husket, LifeId } from "../domain/types";
 
 const KEY = "husket.core.items.v1";
 
+/**
+ * Core v1: Only "private" and "work" are guaranteed active.
+ * Premium/custom lives are considered inactive until the life system exists.
+ */
+function isLifeActiveCoreV1(lifeId: LifeId): boolean {
+  return lifeId === "private" || lifeId === "work";
+}
+
 function safeParse<T>(raw: string | null): T | null {
   if (!raw) return null;
   try {
@@ -35,6 +43,7 @@ export function listByLife(lifeId: LifeId, includeDeleted = false): Husket[] {
 export function listTrash(): Husket[] {
   const all = readAll();
   const trashed = all.filter((h) => !!h.deletedAt);
+  // Trash is sorted by deletedAt (most recently deleted first)
   trashed.sort((a, b) => (b.deletedAt ?? 0) - (a.deletedAt ?? 0));
   return trashed;
 }
@@ -66,18 +75,32 @@ export function softDelete(id: string) {
   writeAll(all);
 }
 
+function resolveRestoreLifeIdCoreV1(preferred: LifeId, fallback: LifeId = "private"): LifeId {
+  return isLifeActiveCoreV1(preferred) ? preferred : fallback;
+}
+
+/**
+ * Restore item from trash.
+ *
+ * Contract: Restore must handle deactivated life (fallback).
+ * Core v1 implementation: custom lives are considered inactive until premium/life-admin exists.
+ */
 export function restoreFromTrash(id: string, targetLifeId: LifeId) {
   const all = readAll();
   const idx = all.findIndex((x) => x.id === id);
   if (idx < 0) return;
 
   const current = all[idx];
+
+  const resolvedLifeId = resolveRestoreLifeIdCoreV1(targetLifeId, "private");
+
   all[idx] = {
     ...current,
-    lifeId: targetLifeId,
+    lifeId: resolvedLifeId,
     deletedAt: undefined,
     deletedFromLifeId: undefined
   };
+
   writeAll(all);
 }
 
