@@ -428,7 +428,7 @@ Gjenoppretting fungerer alltid, også hvis original-liv ikke er tilgjengelig.
 
 Papirkurven føles mer “ekte” (oppdaterer riktig).
 
-Version update – Core v1 • v0.2.1
+Version update – Core v1 • v0.2.2
 ✅ Endring
 
 Slett fra Viewer (kortstokk) fungerer igjen: “Slett” flytter nå husk’et til papirkurv som forventet.
@@ -440,3 +440,13 @@ ViewerDeckModal.tsx sin “robuste repo call”-oppslagstabell er oppdatert til 
 👤 Hvordan en fremtidig bruker forholder seg til dette
 
 Brukeren kan trykke 🗑 Slett i viewer-kortet, og husk’et flyttes til papirkurv uten feilmelding.
+
+Loggsnutt (v0.2.3)
+✅ Endring
+Album oppdateres nå umiddelbart når husk’eter slettes/favoritt-endres i Viewer.
+
+🧱 Hvordan det er bygd (kort)
+husketRepo har fått en lett “subscribe/emit”-mekanisme som trigges ved alle writes. AlbumScreen abonnerer og tvinger recalculation av listen når repoet endres.
+
+👤 Hvordan en fremtidig bruker forholder seg til dette
+Når brukeren sletter et husk’et i kortstokken, forsvinner det også fra albumet med en gang – uten refresh eller navigering.
