@@ -2,10 +2,12 @@
 // src/screens/AlbumScreen.tsx
 // Minimal v1 skeleton (grid + empty state)
 // Now includes: trash button (bottom-left) and uses filters (favoriteOnly)
+// v0.2.1: react to repo writes so album updates immediately after delete/favorite
 // ===============================
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useUiStore } from "../state/uiStore";
-import { listByLife } from "../data/husketRepo";
+import { listByLife, subscribeRepo } from "../data/husketRepo";
+import type { Husket } from "../domain/types";
 
 export function AlbumScreen(props: { onOpenViewer: (id: string) => void }) {
   const { onOpenViewer } = props;
@@ -14,14 +16,25 @@ export function AlbumScreen(props: { onOpenViewer: (id: string) => void }) {
   const filters = useUiStore((s) => s.albumFilters);
   const openTrash = useUiStore((s) => s.openTrash);
 
-  const items = useMemo(() => {
+  const [repoTick, setRepoTick] = useState(0);
+
+  useEffect(() => {
+    // Re-render album when repo writes happen (same-tab localStorage updates)
+    const unsub = subscribeRepo(() => {
+      setRepoTick((x) => x + 1);
+    });
+    return unsub;
+  }, []);
+
+  const items: Husket[] = useMemo(() => {
     if (!activeLifeId) return [];
+    // repoTick forces recalculation when data changes
     const all = listByLife(activeLifeId, false);
 
     if (filters.favoriteOnly) return all.filter((x) => x.isFavorite);
 
     return all;
-  }, [activeLifeId, filters.favoriteOnly]);
+  }, [activeLifeId, filters.favoriteOnly, repoTick]);
 
   if (!activeLifeId) {
     return <div className="appShell">Ingen aktivt liv.</div>;
