@@ -3,6 +3,7 @@
 // v0.2.6:
 // - Shared filter motor for album + viewer deck
 // - Real filter UI for favorite/category/rating/date (AND logic)
+// - + LUKK button in filter modal (cancel without applying)
 // ===============================
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUiStore } from "../state/uiStore";
@@ -39,7 +40,6 @@ function toDateInputValue(ts?: number): string {
 
 function fromDateInputValue(value: string): number | undefined {
   if (!value) return undefined;
-  // Interpret as local date, midnight
   const [y, m, d] = value.split("-").map((x) => parseInt(x, 10));
   if (!y || !m || !d) return undefined;
   const dt = new Date(y, m - 1, d, 0, 0, 0, 0);
@@ -97,11 +97,21 @@ export function App() {
 
   const viewerId = viewer.isOpen ? viewer.husketId : null;
 
-  // Base list (life only). Filters applied below via shared motor.
   const lifeItems: Husket[] = useMemo(() => {
     if (!activeLifeId) return [];
     return listByLife(activeLifeId, false);
-  }, [activeLifeId, panel, viewer.isOpen, viewerId, albumFilters.favoriteOnly, albumFilters.categoryId, albumFilters.ratingId, albumFilters.datePreset, albumFilters.customFrom, albumFilters.customTo]);
+  }, [
+    activeLifeId,
+    panel,
+    viewer.isOpen,
+    viewerId,
+    albumFilters.favoriteOnly,
+    albumFilters.categoryId,
+    albumFilters.ratingId,
+    albumFilters.datePreset,
+    albumFilters.customFrom,
+    albumFilters.customTo
+  ]);
 
   const deckItems: Husket[] = useMemo(() => {
     return applyAlbumFilters(lifeItems, albumFilters);
@@ -115,7 +125,6 @@ export function App() {
     albumFilters.customTo
   ]);
 
-  // Options for filter dropdowns derived from existing data in the active life
   const categoryOptions = useMemo(() => {
     return uniqSorted(lifeItems.map((x) => x.categoryId));
   }, [lifeItems]);
@@ -231,6 +240,11 @@ export function App() {
     toastNow("Filtervalg tømt.");
   };
 
+  const closeFilters = () => {
+    // Cancel: do not apply drafts (drafts will re-sync from store on next open)
+    setFiltersOpen(false);
+  };
+
   const baseShellStyle: React.CSSProperties = {
     pointerEvents: overlayActive ? "none" : "auto",
   };
@@ -267,7 +281,11 @@ export function App() {
       )}
 
       {filtersOpen ? (
-        <div className="modalOverlay" style={{ ...overlayHostStyle, zIndex: 3500000 }} onClick={() => setFiltersOpen(false)}>
+        <div
+          className="modalOverlay"
+          style={{ ...overlayHostStyle, zIndex: 3500000 }}
+          onClick={closeFilters}
+        >
           <div className="modalBox" onClick={(e) => e.stopPropagation()}>
             <h3 className="modalTitle">Filter</h3>
 
@@ -352,6 +370,9 @@ export function App() {
             </div>
 
             <div className="modalActions">
+              <button className="flatBtn" onClick={closeFilters}>
+                Lukk
+              </button>
               <button className="flatBtn" onClick={clearFilters}>
                 Tøm valg
               </button>
