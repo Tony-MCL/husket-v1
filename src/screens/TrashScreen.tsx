@@ -1,26 +1,20 @@
 // ===============================
 // src/screens/TrashScreen.tsx
 // Global trash – visible from Album + Settings
-// v0.2.4:
-// - Keep trash open after restore (close only via "Lukk")
-// - Multi-select restore (restore many at once)
+//
+// v0.2.5:
+// - Compact thumbnail grid (3-4+ per row)
+// - Multi-select via checkbox overlay on each thumbnail
+// - ONE set of action buttons (not per item)
+// - Optional target picker (single choice) before restore
+// - No duplicate "Papirkurven er tom."
+// - Auto-close when trash becomes empty
 // - Subscribe to repo writes so list updates immediately
 // ===============================
 import React, { useEffect, useMemo, useState } from "react";
 import { emptyTrash, listTrash, restoreFromTrash, subscribeRepo } from "../data/husketRepo";
 import type { LifeId, Husket } from "../domain/types";
 
-function labelForLife(lifeId: LifeId) {
-  if (lifeId === "private") return "Privat";
-  if (lifeId === "work") return "Jobb";
-  if (lifeId === "custom1") return "Egendefinert 1";
-  return "Egendefinert 2";
-}
-
-/**
- * Core v1: Only private/work are guaranteed active.
- * Custom lives are considered inactive until premium/life-admin exists.
- */
 function isLifeActiveCoreV1(lifeId: LifeId): boolean {
   return lifeId === "private" || lifeId === "work";
 }
@@ -30,16 +24,15 @@ function resolveOriginalRestoreTargetCoreV1(item: { deletedFromLifeId?: LifeId; 
   return isLifeActiveCoreV1(original) ? original : "private";
 }
 
-function formatDate(ts?: number) {
-  if (!ts) return "—";
-  return new Date(ts).toLocaleDateString("no-NO");
-}
+type RestoreTarget = "original" | "private" | "work";
 
 export function TrashScreen(props: { onClose: () => void; onToast: (msg: string) => void }) {
   const { onClose, onToast } = props;
 
   const [repoTick, setRepoTick] = useState(0);
   const [selectedIds, setSelectedIds] = useState<Record<string, true>>({});
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [restoreTarget, setRestoreTarget] = useState<RestoreTarget>("original");
 
   useEffect(() => {
     const unsub = subscribeRepo(() => setRepoTick((x) => x + 1));
@@ -47,17 +40,24 @@ export function TrashScreen(props: { onClose: () => void; onToast: (msg: string)
   }, []);
 
   const items: Husket[] = useMemo(() => {
-    // repoTick forces refresh when repo changes
     void repoTick;
     return listTrash();
   }, [repoTick]);
 
-  // Clean up selections for items that no longer exist in trash
+  // Auto-close when empty (including immediately on open)
+  useEffect(() => {
+    if (items.length === 0) {
+      onClose();
+    }
+  }, [items.length, onClose]);
+
+  // Keep selection clean when items disappear from trash
   useEffect(() => {
     if (items.length === 0) {
       if (Object.keys(selectedIds).length > 0) setSelectedIds({});
       return;
     }
+
     const inTrash = new Set(items.map((x) => x.id));
     const next: Record<string, true> = {};
     let changed = false;
@@ -86,24 +86,33 @@ export function TrashScreen(props: { onClose: () => void; onToast: (msg: string)
 
   const clearSelection = () => setSelectedIds({});
 
+  const selectAll = () => {
+    const next: Record<string, true> = {};
+    for (const h of items) next[h.id] = true;
+    setSelectedIds(next);
+  };
+
   const doEmpty = () => {
     const ok = window.confirm("Tøm papirkurv permanent?");
     if (!ok) return;
     emptyTrash();
     clearSelection();
     onToast("Papirkurv tømt.");
-    // Keep trash open; user can press "Lukk"
+    // Auto-close handled by effect when items becomes empty
   };
 
-  const doRestoreOne = (id: string, toLifeId: LifeId) => {
-    restoreFromTrash(id, toLifeId);
-    onToast("Gjenopprettet.");
-    // Keep open
-  };
-
-  const restoreMany = (toLifeId: LifeId | "original") => {
+  const openRestorePicker = () => {
     if (selectedCount <= 0) {
       onToast("Velg minst ett husk’et først.");
+      return;
+    }
+    setRestoreTarget("original");
+    setPickerOpen(true);
+  };
+
+  const confirmRestore = () => {
+    if (selectedCount <= 0) {
+      setPickerOpen(false);
       return;
     }
 
@@ -112,15 +121,73 @@ export function TrashScreen(props: { onClose: () => void; onToast: (msg: string)
     for (const h of items) {
       if (!selectedIds[h.id]) continue;
 
-      const target =
-        toLifeId === "original" ? resolveOriginalRestoreTargetCoreV1(h) : toLifeId;
+      const targetLifeId: LifeId =
+        restoreTarget === "original"
+          ? resolveOriginalRestoreTargetCoreV1(h)
+          : restoreTarget;
 
-      restoreFromTrash(h.id, target);
+      restoreFromTrash(h.id, targetLifeId);
       restored += 1;
     }
 
     clearSelection();
+    setPickerOpen(false);
     onToast(`Gjenopprettet ${restored} stk.`);
+    // Auto-close will happen if trash became empty
+  };
+
+  // If auto-close will trigger, avoid rendering flashy UI
+  if (items.length === 0) return null;
+
+  const gridWrap: React.CSSProperties = {
+    display: "grid",
+    gap: 10,
+    gridTemplateColumns: "repeat(auto-fill, minmax(86px, 1fr))",
+    alignItems: "start",
+  };
+
+  const tile: React.CSSProperties = {
+    position: "relative",
+    borderRadius: 14,
+    overflow: "hidden",
+    border: "1px solid var(--line)",
+    background: "rgba(255,255,255,0.7)",
+  };
+
+  const checkboxWrap: React.CSSProperties = {
+    position: "absolute",
+    top: 6,
+    left: 6,
+    zIndex: 2,
+    background: "rgba(255,255,255,0.85)",
+    borderRadius: 10,
+    padding: "4px 6px",
+    border: "1px solid rgba(0,0,0,0.08)",
+    backdropFilter: "blur(6px)",
+  };
+
+  const thumbImg: React.CSSProperties = {
+    width: "100%",
+    height: 86,
+    objectFit: "cover",
+    display: "block",
+  };
+
+  const smallRow: React.CSSProperties = {
+    display: "flex",
+    gap: 10,
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+    marginBottom: 10,
+  };
+
+  const btnRow: React.CSSProperties = {
+    display: "flex",
+    gap: 10,
+    alignItems: "center",
+    justifyContent: "flex-end",
+    flexWrap: "wrap",
   };
 
   return (
@@ -128,117 +195,118 @@ export function TrashScreen(props: { onClose: () => void; onToast: (msg: string)
       <div className="modalBox" onClick={(e) => e.stopPropagation()}>
         <h3 className="modalTitle">Papirkurv</h3>
 
-        {/* Bulk actions */}
-        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 10 }}>
-          <div className="smallHelp" style={{ flex: 1 }}>
-            {items.length === 0
-              ? "Papirkurven er tom."
-              : selectedCount > 0
-              ? `Valgt: ${selectedCount}`
-              : "Velg flere for masse-gjenoppretting."}
+        {/* Header row (info + selection controls) */}
+        <div style={smallRow}>
+          <div className="smallHelp">
+            {selectedCount > 0 ? `Valgt: ${selectedCount}` : `Elementer: ${items.length}`}
           </div>
 
-          {selectedCount > 0 ? (
-            <>
-              <button className="flatBtn" onClick={() => restoreMany("original")}>
-                Gjenopprett valgt (original)
-              </button>
-              <button className="flatBtn" onClick={() => restoreMany("private")}>
-                Til Privat
-              </button>
-              <button className="flatBtn" onClick={() => restoreMany("work")}>
-                Til Jobb
-              </button>
-              <button className="flatBtn" onClick={clearSelection}>
-                Nullstill valg
-              </button>
-            </>
-          ) : null}
-        </div>
+          <div style={btnRow}>
+            {items.length > 0 ? (
+              <>
+                <button className="flatBtn" onClick={selectedCount === items.length ? clearSelection : selectAll}>
+                  {selectedCount === items.length ? "Fjern alle valg" : "Velg alle"}
+                </button>
 
-        {items.length === 0 ? (
-          <div className="smallHelp">Papirkurven er tom.</div>
-        ) : (
-          <div style={{ display: "grid", gap: 10 }}>
-            {items.map((h) => {
-              const originalTarget = resolveOriginalRestoreTargetCoreV1(h);
-              const originalLabel = labelForLife(h.deletedFromLifeId ?? h.lifeId);
-              const originalIsInactive = !isLifeActiveCoreV1(h.deletedFromLifeId ?? h.lifeId);
-              const isSelected = !!selectedIds[h.id];
+                <button className="flatBtn" onClick={openRestorePicker}>
+                  Gjenopprett…
+                </button>
 
-              return (
-                <div
-                  key={h.id}
-                  style={{
-                    border: "1px solid var(--line)",
-                    borderRadius: 14,
-                    padding: 10,
-                    display: "grid",
-                    gap: 8
-                  }}
-                >
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
-                    <label style={{ display: "flex", gap: 10, alignItems: "center", cursor: "pointer" }}>
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => toggleSelected(h.id)}
-                      />
-                      <div className="smallHelp">
-                        {originalLabel}
-                        {originalIsInactive ? " • (deaktivert → Privat)" : null}
-                        {" • "}
-                        {formatDate(h.createdAt)}
-                      </div>
-                    </label>
+                <button className="flatBtn danger" onClick={doEmpty}>
+                  Tøm papirkurv
+                </button>
+              </>
+            ) : null}
 
-                    <div className="smallHelp">{formatDate(h.deletedAt)}</div>
-                  </div>
-
-                  <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                    <img
-                      src={h.imageDataUrl}
-                      alt=""
-                      style={{
-                        width: 64,
-                        height: 64,
-                        borderRadius: 12,
-                        border: "1px solid var(--line)",
-                        objectFit: "cover"
-                      }}
-                    />
-                    <div className="smallHelp" style={{ flex: 1 }}>
-                      {h.comment ? h.comment : "— Ingen kommentar —"}
-                    </div>
-                  </div>
-
-                  <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", flexWrap: "wrap" }}>
-                    <button className="flatBtn" onClick={() => doRestoreOne(h.id, originalTarget)}>
-                      Gjenopprett (original)
-                    </button>
-                    <button className="flatBtn" onClick={() => doRestoreOne(h.id, "private")}>
-                      Til Privat
-                    </button>
-                    <button className="flatBtn" onClick={() => doRestoreOne(h.id, "work")}>
-                      Til Jobb
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        <div className="modalActions">
-          {items.length > 0 ? (
-            <button className="flatBtn danger" onClick={doEmpty}>
-              Tøm papirkurv
+            <button className="flatBtn" onClick={onClose}>
+              Lukk
             </button>
-          ) : null}
-          <button className="flatBtn" onClick={onClose}>
-            Lukk
-          </button>
+          </div>
         </div>
+
+        {/* Thumbnail grid */}
+        <div style={gridWrap}>
+          {items.map((h) => {
+            const isSelected = !!selectedIds[h.id];
+            const title = [
+              `Slettet: ${new Date(h.deletedAt ?? 0).toLocaleString("no-NO")}`,
+              `Opprettet: ${new Date(h.createdAt).toLocaleString("no-NO")}`,
+              h.comment ? `Kommentar: ${h.comment}` : "Ingen kommentar",
+            ].join("\n");
+
+            return (
+              <div key={h.id} style={tile} title={title}>
+                <div style={checkboxWrap}>
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => toggleSelected(h.id)}
+                    aria-label="Velg"
+                  />
+                </div>
+
+                <img src={h.imageDataUrl} alt="" style={thumbImg} />
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Restore target picker (single choice) */}
+        {pickerOpen ? (
+          <div
+            className="modalOverlay"
+            style={{ position: "fixed", inset: 0, zIndex: 1000001, pointerEvents: "auto" }}
+            onClick={() => setPickerOpen(false)}
+          >
+            <div className="modalBox" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
+              <h3 className="modalTitle">Gjenopprett til</h3>
+
+              <div style={{ display: "grid", gap: 10 }}>
+                <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                  <input
+                    type="radio"
+                    name="restoreTarget"
+                    checked={restoreTarget === "original"}
+                    onChange={() => setRestoreTarget("original")}
+                  />
+                  <div>
+                    <div style={{ fontWeight: 800 }}>Originalt liv</div>
+                    <div className="smallHelp">Hvis originalt liv ikke er aktivt, legges det i Privat.</div>
+                  </div>
+                </label>
+
+                <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                  <input
+                    type="radio"
+                    name="restoreTarget"
+                    checked={restoreTarget === "private"}
+                    onChange={() => setRestoreTarget("private")}
+                  />
+                  <div style={{ fontWeight: 800 }}>Privat</div>
+                </label>
+
+                <label style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                  <input
+                    type="radio"
+                    name="restoreTarget"
+                    checked={restoreTarget === "work"}
+                    onChange={() => setRestoreTarget("work")}
+                  />
+                  <div style={{ fontWeight: 800 }}>Jobb</div>
+                </label>
+              </div>
+
+              <div className="modalActions">
+                <button className="flatBtn" onClick={() => setPickerOpen(false)}>
+                  Avbryt
+                </button>
+                <button className="flatBtn primary" onClick={confirmRestore}>
+                  Gjenopprett
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );
