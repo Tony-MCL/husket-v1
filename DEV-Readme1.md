@@ -367,3 +367,24 @@ Slett/favoritt kalles via husketRepo uten å anta eksakt export-navn (robust mot
 Du lukker kortstokken med “Lukk” på kortet.
 
 Fullscreen har egen ✕ uten å trigge underliggende UI.
+
+Oppdateringer 19.02.2026:
+
+Version update – Core v1 • v0.1.17
+✅ Endring
+
+Viewer-overlay lukker ikke lenger ved trykk på bakgrunn (kun via kortets “Lukk” / Escape).
+
+Dette fjerner overlay-interaksjon som kunne forstyrre swipe.
+
+🧱 Hvordan det er bygd (kort)
+
+ViewerDeckModal er nå en “ren host” for HusketSwipeDeck, uten backdrop-click logic.
+
+Swipe og alle actions håndteres inne i kortet.
+
+👤 Brukeropplevelse
+
+Du blar i kortstokken ved å swipe som før.
+
+Du går tilbake til album med “Lukk” på kortet (ikke ved å trykke utenfor).
