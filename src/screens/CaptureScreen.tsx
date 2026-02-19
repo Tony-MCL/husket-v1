@@ -3,18 +3,18 @@
 // Core v1: minimal "create husk'et" to validate flow (offline).
 // Camera integration comes later.
 //
-// v0.2.8:
-// - Add optional category on capture (select existing or type new)
-// - Save categoryId into Husket (editable later in Viewer)
+// v0.2.9:
+// - Category selection moved to reusable OptionPickerModal
+// - Capture UI now matches how Ratings will work later
 // ===============================
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useUiStore } from "../state/uiStore";
 import { makeId } from "../domain/id";
 import type { Husket } from "../domain/types";
 import { listByLife, upsert } from "../data/husketRepo";
+import { OptionPickerModal } from "../components/OptionPickerModal";
 
 function makeDemoImageDataUrl(label: string) {
-  // Simple SVG placeholder as data URL (works everywhere, offline)
   const svg = `
   <svg xmlns="http://www.w3.org/2000/svg" width="900" height="900">
     <defs>
@@ -46,23 +46,14 @@ export function CaptureScreen(props: { onToast: (msg: string) => void }) {
   const goToPanel = useUiStore((s) => s.goToPanel);
 
   const [comment, setComment] = useState("");
-
-  // Category draft
-  const [category, setCategory] = useState("");
-  const [useExisting, setUseExisting] = useState(false);
+  const [categoryId, setCategoryId] = useState<string | undefined>(undefined);
+  const [catOpen, setCatOpen] = useState(false);
 
   const categoryOptions = useMemo(() => {
     if (!activeLifeId) return [];
     const items = listByLife(activeLifeId, false);
     return uniqSorted(items.map((x) => x.categoryId));
   }, [activeLifeId]);
-
-  // If no existing categories, default to "type new"
-  useEffect(() => {
-    if (categoryOptions.length === 0) {
-      setUseExisting(false);
-    }
-  }, [categoryOptions.length]);
 
   const canSave = useMemo(() => {
     if (!activeLifeId) return false;
@@ -78,34 +69,28 @@ export function CaptureScreen(props: { onToast: (msg: string) => void }) {
       return;
     }
 
-    const cat = category.trim();
-
     const now = Date.now();
     const id = makeId();
 
-    // Demo image is an SVG we know the size of (900x900)
     const item: Husket = {
       id,
       lifeId: activeLifeId,
       createdAt: now,
       comment: trimmed ? trimmed : undefined,
-      categoryId: cat ? cat : undefined,
+      categoryId: categoryId?.trim() ? categoryId.trim() : undefined,
 
-      // Required by your Husket type
       imageMeta: {
         mime: "image/svg+xml",
         width: 900,
         height: 900
       },
-
-      // Core v1 skeleton: we store the image directly as data URL for now
       imageDataUrl: makeDemoImageDataUrl("husk’et")
     };
 
     upsert(item);
 
     setComment("");
-    setCategory("");
+    setCategoryId(undefined);
     onToast("Lagret husk’et.");
     goToPanel("album");
   };
@@ -136,60 +121,21 @@ export function CaptureScreen(props: { onToast: (msg: string) => void }) {
         <div style={{ marginTop: 12 }}>
           <div className="label">Kategori (valgfri)</div>
 
-          {categoryOptions.length > 0 ? (
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 10 }}>
-              <button
-                type="button"
-                className={`pill ${useExisting ? "active" : ""}`}
-                onClick={() => setUseExisting(true)}
-              >
-                Velg eksisterende
-              </button>
-              <button
-                type="button"
-                className={`pill ${!useExisting ? "active" : ""}`}
-                onClick={() => setUseExisting(false)}
-              >
-                Skriv ny
-              </button>
-            </div>
-          ) : null}
-
-          {useExisting && categoryOptions.length > 0 ? (
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="flatBtn"
-              style={{ width: "100%", textAlign: "left" as any }}
-            >
-              <option value="">— Ingen kategori —</option>
-              {categoryOptions.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <input
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              placeholder="Skriv kategori…"
-              maxLength={32}
-              style={{
-                width: "100%",
-                borderRadius: 14,
-                border: "1px solid var(--line)",
-                padding: 12,
-                fontSize: 16
-              }}
-            />
-          )}
+          <button
+            type="button"
+            className="flatBtn"
+            onClick={() => setCatOpen(true)}
+            style={{ width: "100%", textAlign: "left" }}
+          >
+            {categoryId ? `🏷 ${categoryId}` : "🏷 Ingen kategori"}
+          </button>
 
           <div className="smallHelp" style={{ marginTop: 6 }}>
-            {category.trim() ? `Valgt: ${category.trim()}` : "Ingen kategori valgt."}
+            {categoryId ? "Trykk for å endre eller fjerne." : "Trykk for å velge eller opprette."}
           </div>
         </div>
 
+        {/* Comment */}
         <div style={{ marginTop: 12 }}>
           <div className="label">Kommentar (valgfri, maks 100)</div>
           <textarea
@@ -221,6 +167,22 @@ export function CaptureScreen(props: { onToast: (msg: string) => void }) {
           </button>
         </div>
       </div>
+
+      {catOpen ? (
+        <OptionPickerModal
+          title="Kategori"
+          options={categoryOptions}
+          value={categoryId}
+          allowCustom={true}
+          inputPlaceholder="Skriv ny kategori…"
+          inputMaxLength={32}
+          saveLabel="Lagre"
+          clearLabel="Fjern"
+          closeLabel="Lukk"
+          onSave={(v) => setCategoryId(v)}
+          onClose={() => setCatOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }
