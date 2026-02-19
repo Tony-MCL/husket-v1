@@ -60,30 +60,44 @@ export function ViewerDeckModal({ items, husketId, onClose, onToast, onNavigateT
   useEffect(() => {
     if (!cur) return;
     if (cur.id !== husketId) onNavigateToId(cur.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cur?.id, husketId, onNavigateToId]);
 
   const deleteToTrashFn = useMemo(() => {
     const m = husketRepo as any;
     return pickFn([
+      // Most likely / current name:
+      m.softDelete,
+
+      // Other possible legacy/alt names:
       m.deleteHusket,
       m.trashHusket,
       m.moveToTrash,
       m.softDeleteHusket,
       m.removeHusketToTrash,
       m.deleteToTrash,
+      m.deleteToTrashHusket,
+      m.softDeleteToTrash,
     ]) as null | ((id: string) => unknown);
   }, []);
 
   const toggleFavoriteFn = useMemo(() => {
     const m = husketRepo as any;
-    return pickFn([m.toggleFavorite, m.setFavorite, m.toggleHusketFavorite]) as null | ((id: string) => unknown);
+    return pickFn([
+      // Current name:
+      m.toggleFavorite,
+
+      // Other possible legacy/alt names:
+      m.setFavorite,
+      m.toggleHusketFavorite,
+    ]) as null | ((id: string) => unknown);
   }, []);
 
   const onDeleteCurrent = async () => {
     if (!cur) return;
 
     if (!deleteToTrashFn) {
-      onToast("Fant ikke slett-funksjon i husketRepo.");
+      onToast("Fant ikke slett-funksjonen i husketRepo.");
       return;
     }
 
@@ -120,9 +134,6 @@ export function ViewerDeckModal({ items, husketId, onClose, onToast, onNavigateT
         zIndex: 1000000,
         pointerEvents: "auto",
       }}
-      // NOTE:
-      // No backdrop click-to-close. This avoids interfering with drag/swipe.
-      // The card has its own "Lukk" button.
     >
       <HusketSwipeDeck
         items={items}
