@@ -29,8 +29,34 @@ function readAll(): Husket[] {
   return Array.isArray(parsed) ? parsed : [];
 }
 
+/**
+ * Local in-tab subscribers.
+ * Note: 'storage' event does not fire in the same tab that writes,
+ * so we also notify subscribers directly.
+ */
+type RepoListener = () => void;
+const listeners = new Set<RepoListener>();
+
+export function subscribeRepo(listener: RepoListener): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+function emitRepoChange() {
+  for (const fn of Array.from(listeners)) {
+    try {
+      fn();
+    } catch {
+      // ignore listener errors
+    }
+  }
+}
+
 function writeAll(items: Husket[]) {
   localStorage.setItem(KEY, JSON.stringify(items));
+  emitRepoChange();
 }
 
 export function listByLife(lifeId: LifeId, includeDeleted = false): Husket[] {
