@@ -3,8 +3,9 @@
 // Core v1 storage: localStorage (simple + stable skeleton)
 // Later: replace with IDB without touching UI contract.
 //
-// v0.2.13:
-// - Emit a global event whenever repo writes, so UI can refresh without manual reload.
+// Repo reactivity:
+// - We emit "husket:repoChanged" on every write.
+// - UI can subscribe via subscribeRepo(cb) for auto-refresh.
 // ===============================
 import type { Husket, LifeId } from "../domain/types";
 
@@ -29,13 +30,22 @@ function notifyChanged() {
   try {
     window.dispatchEvent(new Event(CHANGE_EVENT));
   } catch {
-    // ignore (e.g. SSR/tests)
+    // ignore (tests/SSR)
   }
 }
 
 function writeAll(items: Husket[]) {
   localStorage.setItem(KEY, JSON.stringify(items));
   notifyChanged();
+}
+
+// -------------------------------
+// Public: subscribe to repo writes
+// -------------------------------
+export function subscribeRepo(onChange: () => void): () => void {
+  const handler = () => onChange();
+  window.addEventListener(CHANGE_EVENT, handler);
+  return () => window.removeEventListener(CHANGE_EVENT, handler);
 }
 
 export function listByLife(lifeId: LifeId, includeDeleted = false): Husket[] {
@@ -115,9 +125,4 @@ export function toggleFavorite(id: string) {
   };
 
   writeAll(all);
-}
-
-// Optional helper if you ever want to subscribe directly somewhere else
-export function repoChangeEventName() {
-  return CHANGE_EVENT;
 }
