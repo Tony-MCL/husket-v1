@@ -548,3 +548,7 @@ husketRepo emitter et globalt husket:repoChanged event ved alle writes. App.tsx 
 
 👤 Hvordan en fremtidig bruker forholder seg til dette
 Når brukeren endrer kategori eller favoritt, oppdateres visningen umiddelbart.
+
+Version update – Core v1 • v0.2.14
+✅ Endring
+Kategori i Viewer fungerer nå kontraktriktig: brukeren kan velge blant app-definerte kategorier (ikon + navn), uten fritekst. Valg lagres på husk’et (categoryId) via husketRepo, og kortet oppdateres umiddelbart uten refresh.
