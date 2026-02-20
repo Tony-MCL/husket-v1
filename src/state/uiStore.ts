@@ -2,8 +2,9 @@
 // src/state/uiStore.ts
 // Global UI-state (small, per contract)
 //
-// v0.2.10:
-// - Add categoryConfigOpen overlay flag (global UI only)
+// v0.2.11:
+// - When opening modal overlays from Settings, auto-close Settings first.
+//   Prevents "modal under drawer" / click-blocking issues.
 // ===============================
 import { create } from "zustand";
 import type { AlbumFilters, LifeId, PanelId } from "../domain/types";
@@ -20,7 +21,6 @@ type UiState = {
 
   trashOpen: boolean;
 
-  // NEW: category config overlay (settings sub-screen)
   categoryConfigOpen: boolean;
 
   panelHintCount: number;
@@ -73,10 +73,16 @@ export const useUiStore = create<UiState>((set, get) => ({
   openSettings: () => set({ settingsOpen: true }),
   closeSettings: () => set({ settingsOpen: false }),
 
-  openTrash: () => set({ trashOpen: true }),
+  openTrash: () => {
+    // Ensure drawer never blocks trash modal
+    set({ settingsOpen: false, trashOpen: true });
+  },
   closeTrash: () => set({ trashOpen: false }),
 
-  openCategoryConfig: () => set({ categoryConfigOpen: true }),
+  openCategoryConfig: () => {
+    // Ensure drawer never blocks category modal
+    set({ settingsOpen: false, categoryConfigOpen: true });
+  },
   closeCategoryConfig: () => set({ categoryConfigOpen: false }),
 
   setAlbumFilters: (patch) => set({ albumFilters: { ...get().albumFilters, ...patch } }),
