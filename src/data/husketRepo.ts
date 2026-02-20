@@ -3,29 +3,13 @@
 // Core v1 storage: localStorage (simple + stable skeleton)
 // Later: replace with IDB without touching UI contract.
 //
-// v0.2.7:
-// - add setCategory(id, categoryId?) for editable category
+// v0.2.13:
+// - Emit a global event whenever repo writes, so UI can refresh without manual reload.
 // ===============================
 import type { Husket, LifeId } from "../domain/types";
 
 const KEY = "husket.core.items.v1";
-
-// Simple in-memory subscribers for "repo changed" signals
-type RepoListener = () => void;
-const listeners = new Set<RepoListener>();
-function emit() {
-  for (const fn of Array.from(listeners)) {
-    try {
-      fn();
-    } catch {
-      // ignore
-    }
-  }
-}
-export function subscribeRepo(fn: RepoListener): () => void {
-  listeners.add(fn);
-  return () => listeners.delete(fn);
-}
+const CHANGE_EVENT = "husket:repoChanged";
 
 function safeParse<T>(raw: string | null): T | null {
   if (!raw) return null;
@@ -41,9 +25,17 @@ function readAll(): Husket[] {
   return Array.isArray(parsed) ? parsed : [];
 }
 
+function notifyChanged() {
+  try {
+    window.dispatchEvent(new Event(CHANGE_EVENT));
+  } catch {
+    // ignore (e.g. SSR/tests)
+  }
+}
+
 function writeAll(items: Husket[]) {
   localStorage.setItem(KEY, JSON.stringify(items));
-  emit();
+  notifyChanged();
 }
 
 export function listByLife(lifeId: LifeId, includeDeleted = false): Husket[] {
@@ -125,19 +117,7 @@ export function toggleFavorite(id: string) {
   writeAll(all);
 }
 
-// v0.2.7: editable category
-export function setCategory(id: string, categoryId?: string) {
-  const all = readAll();
-  const idx = all.findIndex((x) => x.id === id);
-  if (idx < 0) return;
-
-  const current = all[idx];
-  const clean = (categoryId ?? "").trim();
-
-  all[idx] = {
-    ...current,
-    categoryId: clean ? clean : undefined
-  };
-
-  writeAll(all);
+// Optional helper if you ever want to subscribe directly somewhere else
+export function repoChangeEventName() {
+  return CHANGE_EVENT;
 }
