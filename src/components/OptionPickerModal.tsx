@@ -84,7 +84,16 @@ export function OptionPickerModal({
   };
 
   return (
-    <div className="modalOverlay" onClick={onClose}>
+    <div
+      className="modalOverlay"
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 5000000,
+        pointerEvents: "auto",
+      }}
+      onClick={onClose}
+    >
       <div className="modalBox" onClick={(e) => e.stopPropagation()}>
         <h3 className="modalTitle">{title}</h3>
 
