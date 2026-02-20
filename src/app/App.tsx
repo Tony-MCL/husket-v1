@@ -1,6 +1,6 @@
 // ===============================
 // src/app/App.tsx
-// v0.2.10: add CategoryConfigScreen overlay and wiring
+// v0.2.13: live refresh on repo changes (favorites/categories/etc.)
 // ===============================
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUiStore } from "../state/uiStore";
@@ -24,6 +24,15 @@ export function App() {
   const [boot, setBoot] = useState<BootPhase>("splash");
   const [toast, setToast] = useState<string | null>(null);
 
+  // NEW: repo tick to force UI recompute on localStorage writes
+  const [repoTick, setRepoTick] = useState(0);
+
+  useEffect(() => {
+    const onRepo = () => setRepoTick((t) => t + 1);
+    window.addEventListener("husket:repoChanged", onRepo);
+    return () => window.removeEventListener("husket:repoChanged", onRepo);
+  }, []);
+
   const activeLifeId = useUiStore((s) => s.activeLifeId);
   const panel = useUiStore((s) => s.panel);
   const goToPanel = useUiStore((s) => s.goToPanel);
@@ -42,7 +51,7 @@ export function App() {
   const trashOpen = useUiStore((s) => s.trashOpen);
   const closeTrash = useUiStore((s) => s.closeTrash);
 
-  const settingsOpen = useUiStore((s: any) => (typeof s.settingsOpen === "boolean" ? s.settingsOpen : false));
+  const settingsOpen = useUiStore((s) => s.settingsOpen);
 
   const categoryConfigOpen = useUiStore((s) => s.categoryConfigOpen);
   const closeCategoryConfig = useUiStore((s) => s.closeCategoryConfig);
@@ -67,7 +76,7 @@ export function App() {
     const all = listByLife(activeLifeId, false);
     if (albumFilters.favoriteOnly) return all.filter((x) => x.isFavorite);
     return all;
-  }, [activeLifeId, albumFilters.favoriteOnly, panel, viewer.isOpen, viewerId]);
+  }, [activeLifeId, albumFilters.favoriteOnly, panel, viewer.isOpen, viewerId, repoTick]);
 
   useEffect(() => {
     if (!activeLifeId) return;
@@ -77,9 +86,8 @@ export function App() {
     if (count === 0) {
       goToPanel("capture");
     }
-  }, [activeLifeId, panel, goToPanel]);
+  }, [activeLifeId, panel, goToPanel, repoTick]);
 
-  // overlays
   const overlayActive = !!(viewer.isOpen || trashOpen || filtersOpen || settingsOpen || categoryConfigOpen);
 
   const drag = useRef<{ startX: number; startY: number; active: boolean } | null>(null);
@@ -124,7 +132,7 @@ export function App() {
     }
   };
 
-  const versionLabel = useMemo(() => "Core v1 • offline • 0.2.10", []);
+  const versionLabel = useMemo(() => "Core v1 • offline • 0.2.13", []);
 
   if (boot === "splash") {
     return <SplashScreen onDone={() => setBoot("ready")} />;
@@ -167,14 +175,16 @@ export function App() {
       <div style={baseShellStyle}>
         <TopBar onOpenFilters={() => setFiltersOpen(true)} />
 
-        {panel === "album" ? <AlbumScreen onOpenViewer={(id) => openViewer(id)} /> : <CaptureScreen onToast={toastNow} />}
+        {panel === "album" ? (
+          <AlbumScreen onOpenViewer={(id) => openViewer(id)} repoTick={repoTick} />
+        ) : (
+          <CaptureScreen onToast={toastNow} />
+        )}
 
         <BottomNav />
       </div>
 
       <ToastHost message={toast} />
-
-      {/* SettingsDrawer is its own overlay component now (renders only when open) */}
       <SettingsDrawer />
 
       {filtersOpen ? (
