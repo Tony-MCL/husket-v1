@@ -2,14 +2,19 @@
 // src/components/HusketSwipeDeck.tsx
 // Viewer bunke + swipe (Framer Motion)
 //
-// v0.2.9:
-// - Category editor uses OptionPickerModal (same as Capture)
-// - This prepares us for Ratings with minimal extra work
+// v0.2.14:
+// - Replace legacy/incorrect category dialog.
+// - Add proper viewer category picker (no custom names) and persist via husketRepo.setCategory.
+// - UI updates live via repo change event.
+//
+// HARD FIX for mobile ghost/tap-through remains as before.
 // ===============================
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion, useAnimation, type PanInfo } from "framer-motion";
 import type { Husket } from "../domain/types";
-import { OptionPickerModal } from "./OptionPickerModal";
+import { CategoryPickerModal } from "./CategoryPickerModal";
+import { categoryById } from "../domain/categories";
+import { setCategory } from "../data/husketRepo";
 
 type Props = {
   items: Husket[];
@@ -19,8 +24,6 @@ type Props = {
   onClose: () => void;
   onToggleFavorite: () => void;
   onDeleteCurrent: () => void;
-
-  onSetCategory: (categoryId?: string) => void;
 };
 
 function clamp(n: number, a: number, b: number) {
@@ -37,21 +40,7 @@ function formatDate(ts: number) {
   });
 }
 
-function uniqSorted(values: Array<string | undefined>): string[] {
-  const s = new Set<string>();
-  for (const v of values) if (typeof v === "string" && v.trim()) s.add(v.trim());
-  return Array.from(s).sort((a, b) => a.localeCompare(b));
-}
-
-export function HusketSwipeDeck({
-  items,
-  index,
-  onSetIndex,
-  onClose,
-  onToggleFavorite,
-  onDeleteCurrent,
-  onSetCategory
-}: Props) {
+export function HusketSwipeDeck({ items, index, onSetIndex, onClose, onToggleFavorite, onDeleteCurrent }: Props) {
   const cur = items[index];
   const canOlder = index < items.length - 1;
   const canNewer = index > 0;
@@ -60,12 +49,8 @@ export function HusketSwipeDeck({
   const [showUnder, setShowUnder] = useState(false);
   const [fullOpen, setFullOpen] = useState(false);
 
-  // Category modal
+  // NEW: category modal open
   const [catOpen, setCatOpen] = useState(false);
-
-  const categoryOptions = useMemo(() => {
-    return uniqSorted(items.map((x) => x.categoryId));
-  }, [items]);
 
   // Global shield timer
   const shieldTimerRef = useRef<number | null>(null);
@@ -101,14 +86,20 @@ export function HusketSwipeDeck({
     if (!shieldActiveRef.current) return;
     try {
       e.preventDefault();
-    } catch {}
+    } catch {
+      // ignore
+    }
     try {
       const anyEvent = e as unknown as { stopImmediatePropagation?: () => void };
       anyEvent.stopImmediatePropagation?.();
-    } catch {}
+    } catch {
+      // ignore
+    }
     try {
       e.stopPropagation();
-    } catch {}
+    } catch {
+      // ignore
+    }
   };
 
   const installGlobalBlocker = () => {
@@ -151,17 +142,14 @@ export function HusketSwipeDeck({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
-
       if (catOpen) {
         setCatOpen(false);
         return;
       }
-
       if (fullOpen) {
         closeFullscreenHard();
         return;
       }
-
       onClose();
     };
     window.addEventListener("keydown", onKey);
@@ -367,9 +355,22 @@ export function HusketSwipeDeck({
     display: "block"
   };
 
+  const cat = categoryById(cur.categoryId);
+
   return (
     <div style={wrap}>
-      {/* Under card */}
+      {/* NEW: Category picker modal (always above deck) */}
+      {catOpen ? (
+        <CategoryPickerModal
+          currentCategoryId={cur.categoryId}
+          onClose={() => setCatOpen(false)}
+          onPick={(nextId) => {
+            setCategory(cur.id, nextId);
+          }}
+        />
+      ) : null}
+
+      {/* Under card (peek only while dragging) */}
       {underItem ? (
         <div
           style={{
@@ -396,24 +397,7 @@ export function HusketSwipeDeck({
         </div>
       ) : null}
 
-      {/* Category modal */}
-      {catOpen ? (
-        <OptionPickerModal
-          title="Kategori"
-          options={categoryOptions}
-          value={cur.categoryId}
-          allowCustom={true}
-          inputPlaceholder="Skriv ny kategori…"
-          inputMaxLength={32}
-          saveLabel="Lagre"
-          clearLabel="Fjern"
-          closeLabel="Lukk"
-          onSave={(v) => onSetCategory(v)}
-          onClose={() => setCatOpen(false)}
-        />
-      ) : null}
-
-      {/* Fullscreen */}
+      {/* Fullscreen photo */}
       {fullOpen ? (
         <div
           role="dialog"
@@ -518,6 +502,7 @@ export function HusketSwipeDeck({
           setShowUnder(false);
         }}
       >
+        {/* Arrow overlay */}
         <div style={topBtns}>
           {canNewer ? (
             <button type="button" onClick={() => void goNewerAnimated()} style={arrowBtn("left")} aria-label="Nyere">
@@ -531,6 +516,7 @@ export function HusketSwipeDeck({
           ) : null}
         </div>
 
+        {/* Image (tap => fullscreen) */}
         <div style={imageFrame}>
           <div
             style={imageShell}
@@ -545,24 +531,9 @@ export function HusketSwipeDeck({
           </div>
         </div>
 
+        {/* Meta */}
         <div style={meta}>
           <div style={{ ...chip, color: "rgba(0,0,0,0.72)" }}>Husket øyeblikk: {formatDate(cur.createdAt)}</div>
-
-          {/* Category row */}
-          <div style={row}>
-            <span style={chip}>{cur.categoryId ? `🏷 ${cur.categoryId}` : "🏷 —"}</span>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setCatOpen(true);
-              }}
-              style={{ ...actionBtn, padding: 0, fontWeight: 700 }}
-              title="Endre kategori"
-            >
-              {cur.categoryId ? "Endre kategori" : "Sett kategori"}
-            </button>
-          </div>
 
           {cur.comment ? (
             <div style={{ color: "rgba(0,0,0,0.86)", whiteSpace: "pre-wrap" }}>{cur.comment}</div>
@@ -570,6 +541,22 @@ export function HusketSwipeDeck({
             <div style={{ color: "rgba(0,0,0,0.45)" }}>— Ingen kommentar —</div>
           )}
 
+          {/* NEW: Category row */}
+          <div style={row}>
+            <span style={chip}>{cat ? `${cat.icon} ${cat.name}` : "— Ingen kategori —"}</span>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setCatOpen(true);
+              }}
+              style={{ ...actionBtn, padding: 0, fontWeight: 700 }}
+            >
+              Endre kategori
+            </button>
+          </div>
+
+          {/* Favorite row */}
           <div style={row}>
             <span style={chip}>{cur.isFavorite ? "★ Favoritt" : "—"}</span>
             <button
