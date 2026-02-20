@@ -4,7 +4,7 @@
 // Later: replace with IDB without touching UI contract.
 //
 // Repo reactivity:
-// - We emit "husket:repoChanged" on every write.
+// - Emit "husket:repoChanged" on every write.
 // - UI can subscribe via subscribeRepo(cb) for auto-refresh.
 // ===============================
 import type { Husket, LifeId } from "../domain/types";
@@ -122,6 +122,23 @@ export function toggleFavorite(id: string) {
     ...current,
     isFavorite: nextIsFav ? true : undefined,
     favoritedAt: nextIsFav ? Date.now() : undefined
+  };
+
+  writeAll(all);
+}
+
+// -------------------------------
+// NEW: set category on a husk’et
+// -------------------------------
+export function setCategory(id: string, categoryId?: string) {
+  const all = readAll();
+  const idx = all.findIndex((x) => x.id === id);
+  if (idx < 0) return;
+
+  const current = all[idx];
+  all[idx] = {
+    ...current,
+    categoryId: categoryId ? categoryId : undefined
   };
 
   writeAll(all);
