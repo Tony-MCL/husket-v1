@@ -1,12 +1,10 @@
 // ===============================
 // src/components/SettingsDrawer.tsx
 // Simple, robust slide-in settings drawer.
-// - Lives above TopBar (App.tsx already hosts it as overlay when open)
-// - Provides entry points:
-//   - Category selection for Capture (new)
-//   - Trash
+// - Must always sit BELOW true modals (filter/trash/category) + viewer.
+// - When launching a modal from Settings, close Settings first.
 //
-// v0.2.10
+// v0.2.11
 // ===============================
 import React from "react";
 import { useUiStore } from "../state/uiStore";
@@ -29,6 +27,17 @@ export function SettingsDrawer() {
 
   if (!settingsOpen) return null;
 
+  const openCategories = () => {
+    // Ensure modal can sit above everything
+    closeSettings();
+    openCategoryConfig();
+  };
+
+  const openTrashNow = () => {
+    closeSettings();
+    openTrash();
+  };
+
   return (
     <div
       className="modalOverlay"
@@ -36,7 +45,8 @@ export function SettingsDrawer() {
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: 9999999,
+        // IMPORTANT: SettingsDrawer must be BELOW real modals + viewer
+        zIndex: 3000000,
         pointerEvents: "auto"
       }}
     >
@@ -65,11 +75,11 @@ export function SettingsDrawer() {
         </div>
 
         <div style={{ display: "grid", gap: 10, alignContent: "start" }}>
-          <button className="flatBtn" onClick={openCategoryConfig} disabled={!activeLifeId}>
+          <button className="flatBtn" onClick={openCategories} disabled={!activeLifeId}>
             🏷 Kategorier på Capture
           </button>
 
-          <button className="flatBtn" onClick={openTrash}>
+          <button className="flatBtn" onClick={openTrashNow}>
             🗑 Papirkurv
           </button>
 
