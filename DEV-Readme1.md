@@ -530,3 +530,7 @@ Kategorikatalog ligger i domain/catalog.ts. Brukerpreferanser for “kategorier 
 
 👤 Hvordan en fremtidig bruker forholder seg til dette
 Brukeren velger sine snarveikategorier i Settings og får disse som raske valg i Capture, uten at endringer påvirker gamle minner.
+
+Version update – Core v1 • v0.2.11
+✅ Endring
+Modaler (kategorier/papirkurv) åpnes nå alltid over appens øvrige lag. SettingsDrawer lukker seg automatisk når man åpner en modal fra Settings, og drawer har lavere z-index enn viewer/modaler slik at dialoger alltid er klikkbare.
