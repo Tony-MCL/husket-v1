@@ -534,3 +534,7 @@ Brukeren velger sine snarveikategorier i Settings og får disse som raske valg i
 Version update – Core v1 • v0.2.11
 ✅ Endring
 Modaler (kategorier/papirkurv) åpnes nå alltid over appens øvrige lag. SettingsDrawer lukker seg automatisk når man åpner en modal fra Settings, og drawer har lavere z-index enn viewer/modaler slik at dialoger alltid er klikkbare.
+
+Version update – Core v1 • v0.2.12
+✅ Endring
+Kategori-dialog som åpnes fra Viewer rendres nå med “hard” overlay-z-index over kortstokken, slik at modalen alltid er klikkbar og aldri havner bak husk’et-kortet.
