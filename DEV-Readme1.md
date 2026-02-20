@@ -538,3 +538,13 @@ Modaler (kategorier/papirkurv) åpnes nå alltid over appens øvrige lag. Settin
 Version update – Core v1 • v0.2.12
 ✅ Endring
 Kategori-dialog som åpnes fra Viewer rendres nå med “hard” overlay-z-index over kortstokken, slik at modalen alltid er klikkbar og aldri havner bak husk’et-kortet.
+
+Version update – Core v1 • v0.2.13
+✅ Endring
+Appen oppdaterer nå Album og Viewer automatisk når man endrer kategori eller toggler favoritt – uten manuell refresh.
+
+🧱 Hvordan det er bygd (kort)
+husketRepo emitter et globalt husket:repoChanged event ved alle writes. App.tsx lytter på dette og bumper en lokal repoTick som brukes som dependency i useMemo/lister, slik at UI alltid re-rendrer på datamutasjoner.
+
+👤 Hvordan en fremtidig bruker forholder seg til dette
+Når brukeren endrer kategori eller favoritt, oppdateres visningen umiddelbart.
