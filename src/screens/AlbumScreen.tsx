@@ -1,45 +1,30 @@
 // ===============================
 // src/screens/AlbumScreen.tsx
+// Minimal v1 skeleton (grid + empty state)
+// Now includes: trash button (bottom-left) and uses filters (favoriteOnly)
 //
-// v0.2.7:
-// - show category badge in meta (simple)
+// v0.2.13:
+// - Re-render when repo changes (repoTick) so favorites/categories update live.
 // ===============================
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { useUiStore } from "../state/uiStore";
-import { listByLife, subscribeRepo } from "../data/husketRepo";
-import type { Husket } from "../domain/types";
-import { applyAlbumFilters } from "../domain/applyAlbumFilters";
+import { listByLife } from "../data/husketRepo";
 
-export function AlbumScreen(props: { onOpenViewer: (id: string) => void }) {
-  const { onOpenViewer } = props;
+export function AlbumScreen(props: { onOpenViewer: (id: string) => void; repoTick: number }) {
+  const { onOpenViewer, repoTick } = props;
 
   const activeLifeId = useUiStore((s) => s.activeLifeId);
   const filters = useUiStore((s) => s.albumFilters);
   const openTrash = useUiStore((s) => s.openTrash);
 
-  const [repoTick, setRepoTick] = useState(0);
-
-  useEffect(() => {
-    const unsub = subscribeRepo(() => setRepoTick((x) => x + 1));
-    return unsub;
-  }, []);
-
-  const items: Husket[] = useMemo(() => {
+  const items = useMemo(() => {
     if (!activeLifeId) return [];
-    void repoTick;
-
     const all = listByLife(activeLifeId, false);
-    return applyAlbumFilters(all, filters);
-  }, [
-    activeLifeId,
-    repoTick,
-    filters.favoriteOnly,
-    filters.categoryId,
-    filters.ratingId,
-    filters.datePreset,
-    filters.customFrom,
-    filters.customTo
-  ]);
+
+    if (filters.favoriteOnly) return all.filter((x) => x.isFavorite);
+
+    return all;
+  }, [activeLifeId, filters.favoriteOnly, repoTick]);
 
   if (!activeLifeId) {
     return <div className="appShell">Ingen aktivt liv.</div>;
@@ -76,9 +61,9 @@ export function AlbumScreen(props: { onOpenViewer: (id: string) => void }) {
               onClick={() => onOpenViewer(h.id)}
             >
               <img className="thumbImg" src={h.imageDataUrl} alt="" />
-              <div className="thumbMeta" style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+              <div className="thumbMeta">
                 <span>{new Date(h.createdAt).toLocaleDateString("no-NO")}</span>
-                <span className="badge">{h.categoryId ? `🏷` : "—"}</span>
+                <span className="badge">{h.isFavorite ? "★" : "—"}</span>
               </div>
             </button>
           ))}
