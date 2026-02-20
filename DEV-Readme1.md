@@ -552,3 +552,7 @@ Når brukeren endrer kategori eller favoritt, oppdateres visningen umiddelbart.
 Version update – Core v1 • v0.2.14
 ✅ Endring
 Kategori i Viewer fungerer nå kontraktriktig: brukeren kan velge blant app-definerte kategorier (ikon + navn), uten fritekst. Valg lagres på husk’et (categoryId) via husketRepo, og kortet oppdateres umiddelbart uten refresh.
+
+Version update – Core v1 • v0.2.15
+🔧 Fix
+Build-fix: Fjernet utdatert prop onSetCategory som ble sendt til HusketSwipeDeck. Kategorien håndteres nå internt i deck-komponenten, og TypeScript build er grønn igjen.
